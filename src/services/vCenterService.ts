@@ -22,6 +22,7 @@ export class VCenterService {
 
   constructor(credentials: VCenterCredentials) {
     this.credentials = credentials;
+    console.log(`VCenterService initialized with URL: ${this.credentials.url}`);
   }
 
   /**
@@ -31,6 +32,20 @@ export class VCenterService {
     try {
       console.log(`Connecting to vCenter at ${this.credentials.url}`);
       
+      // First check if the API is available
+      try {
+        const healthCheck = await fetch(`${this.apiBaseUrl}/health`);
+        if (healthCheck.ok) {
+          const healthData = await healthCheck.json();
+          console.log('API health check:', healthData);
+        } else {
+          console.warn('API health check failed:', await healthCheck.text());
+        }
+      } catch (healthErr) {
+        console.warn('Could not perform API health check:', healthErr);
+      }
+      
+      // Now attempt to connect
       const response = await fetch(`${this.apiBaseUrl}/vcenter/connect`, {
         method: 'POST',
         headers: {

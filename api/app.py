@@ -1,4 +1,3 @@
-
 import os
 import ssl
 import json
@@ -20,25 +19,53 @@ CORS(app)
 # Store active sessions
 sessions = {}
 
+@app.route('/', methods=['GET'])
+def index():
+    """Root endpoint to verify API is running"""
+    return jsonify({
+        'status': 'ok',
+        'message': 'VM Captain API is running'
+    })
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'ok', 
+        'message': 'API is running',
+        'environment': {
+            'VCENTER_URL': os.environ.get('VITE_VCENTER_URL', 'Not set'),
+            'VCENTER_USERNAME': os.environ.get('VITE_VCENTER_USERNAME', 'Not set'),
+            'VCENTER_IGNORE_SSL': os.environ.get('VITE_VCENTER_IGNORE_SSL', 'Not set'),
+            'PORT': os.environ.get('PORT', '5000')
+        }
+    })
+
 @app.route('/vcenter/connect', methods=['POST'])
 def connect():
     try:
+        # Get connection parameters from request body or environment variables
         data = request.json
-        url = data.get('url')
-        username = data.get('username')
-        password = data.get('password')
-        ignore_ssl = data.get('ignore_ssl', False)
+        url = data.get('url') or os.environ.get('VITE_VCENTER_URL')
+        username = data.get('username') or os.environ.get('VITE_VCENTER_USERNAME')
+        password = data.get('password') or os.environ.get('VITE_VCENTER_PASSWORD')
+        ignore_ssl = data.get('ignore_ssl') or (os.environ.get('VITE_VCENTER_IGNORE_SSL') == 'true')
+        
+        app.logger.info(f"Connecting to vCenter at {url} with username {username}")
         
         if not url or not username or not password:
+            app.logger.error("Missing required connection parameters")
             return jsonify({'error': 'Missing required connection parameters'}), 400
         
         # Parse hostname from URL
         import re
         hostname_match = re.search(r'https?://([^/]+)', url)
         if not hostname_match:
+            app.logger.error(f"Invalid vCenter URL format: {url}")
             return jsonify({'error': 'Invalid vCenter URL format'}), 400
         
         hostname = hostname_match.group(1)
+        app.logger.info(f"Parsed hostname: {hostname}")
         
         # Configure SSL context
         context = None
@@ -46,6 +73,7 @@ def connect():
             context = ssl._create_unverified_context()
         
         # Connect to vCenter
+        app.logger.info("Attempting connection to vCenter...")
         service_instance = SmartConnect(
             host=hostname,
             user=username,
@@ -54,7 +82,8 @@ def connect():
         )
         
         if not service_instance:
-            return jsonify({'error': 'Failed to connect to vCenter'}), 500
+            app.logger.error("Failed to connect to vCenter - no service instance returned")
+            return jsonify({'error': 'Failed to connect to vCenter - authentication failed'}), 500
         
         # Generate session ID
         session_id = f"session-{int(time.time())}-{random.randint(1000, 9999)}"
@@ -65,6 +94,7 @@ def connect():
         
         # Register cleanup function to disconnect all sessions when app stops
         atexit.register(cleanup_sessions)
+        app.logger.info(f"Connection successful - created session {session_id}")
         
         return jsonify({'session_id': session_id})
     
@@ -288,4 +318,9 @@ def health_check():
     return jsonify({'status': 'ok', 'message': 'API is running'}), 200
 
 if __name__ == '__main__':
+    # Enable more detailed logging
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info("Starting VM Captain API...")
     app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

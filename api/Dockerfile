@@ -8,4 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# Make sure the application uses environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Run with gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--log-level", "info", "app:app"]
