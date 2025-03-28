@@ -9,16 +9,20 @@ interface ConfigType {
   environment: 'development' | 'production' | 'test';
 }
 
-// In a real app, these would be loaded from environment variables
-// For now, we'll use default values with placeholders
+// Read from environment variables
 const config: ConfigType = {
   vCenter: {
-    url: import.meta.env.VITE_VCENTER_URL || 'https://your-vcenter-server/sdk',
-    username: import.meta.env.VITE_VCENTER_USERNAME || 'administrator@vsphere.local',
-    password: import.meta.env.VITE_VCENTER_PASSWORD || 'default-password',
-    ignoreSSL: import.meta.env.VITE_VCENTER_IGNORE_SSL === 'true' || true
+    url: import.meta.env.VITE_VCENTER_URL || '',
+    username: import.meta.env.VITE_VCENTER_USERNAME || '',
+    password: import.meta.env.VITE_VCENTER_PASSWORD || '',
+    ignoreSSL: import.meta.env.VITE_VCENTER_IGNORE_SSL === 'true' || false
   },
-  environment: (import.meta.env.NODE_ENV as 'development' | 'production' | 'test') || 'development'
+  environment: (import.meta.env.NODE_ENV as 'development' | 'production' | 'test') || 'production'
 };
+
+// Validate config
+if (!config.vCenter.url || !config.vCenter.username || !config.vCenter.password) {
+  console.error('Missing vCenter configuration. Please check your environment variables.');
+}
 
 export default config;

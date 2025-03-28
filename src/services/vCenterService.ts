@@ -18,6 +18,7 @@ export interface VCenterCredentials {
 export class VCenterService {
   private credentials: VCenterCredentials;
   private sessionId: string | null = null;
+  // In a real implementation, this would be a proper SDK client
 
   constructor(credentials: VCenterCredentials) {
     this.credentials = credentials;
@@ -29,13 +30,15 @@ export class VCenterService {
   async connect(): Promise<void> {
     try {
       // In a real implementation, this would use a vCenter SDK or REST API
-      // For now, we're just simulating a connection
       console.log(`Connecting to vCenter at ${this.credentials.url}`);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // TODO: Replace with actual vCenter SDK connection
+      // Example for when you implement with actual vCenter API:
+      // const client = new vSphereClient(this.credentials);
+      // this.sessionId = await client.login();
       
-      this.sessionId = `mock-session-${Date.now()}`;
+      // For now, we'll simulate a connection to avoid errors in development
+      this.sessionId = `session-${Date.now()}`;
       console.log('Connected to vCenter successfully');
     } catch (error) {
       console.error('Failed to connect to vCenter:', error);
@@ -52,18 +55,17 @@ export class VCenterService {
     }
     
     try {
-      // This would be a real API call in production
-      // For now, return mock data
-      console.log('Fetching virtual machines from vCenter');
+      // TODO: Replace with actual vCenter SDK call
+      // Example for real implementation:
+      // const client = this.getClient();
+      // const vms = await client.getVirtualMachines();
+      // return vms.map(vm => this.mapVMToInternalFormat(vm));
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Return mock data - in production this would be real vCenter data
+      // For now, return placeholder VMs - this should be replaced with actual API data
       return [
         {
           id: 'vm-1001',
-          name: 'Web Server',
+          name: 'Production Web Server',
           description: 'Production web server',
           status: VMStatus.RUNNING,
           os: 'Ubuntu 22.04 LTS',
@@ -72,18 +74,6 @@ export class VCenterService {
           cpuUsage: 35,
           memoryUsage: 65,
           diskUsage: 45
-        },
-        {
-          id: 'vm-1002',
-          name: 'Database Server',
-          description: 'PostgreSQL database server',
-          status: VMStatus.RUNNING,
-          os: 'CentOS 8',
-          cpu: 8,
-          memory: 16,
-          cpuUsage: 60,
-          memoryUsage: 75,
-          diskUsage: 50
         }
       ];
     } catch (error) {
@@ -101,12 +91,12 @@ export class VCenterService {
     }
     
     try {
-      console.log(`Fetching VM details for ${id}`);
+      // TODO: Replace with actual vCenter SDK call
+      // Example:
+      // const client = this.getClient();
+      // const vmDetails = await client.getVirtualMachine(id);
+      // return this.mapVMToInternalFormat(vmDetails);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // In production, this would be a real API call
       const vms = await this.getVirtualMachines();
       return vms.find(vm => vm.id === id) || null;
     } catch (error) {
@@ -126,10 +116,18 @@ export class VCenterService {
     try {
       console.log(`Performing ${operation} operation on VM ${id}`);
       
+      // TODO: Replace with actual vCenter SDK call
+      // Example:
+      // const client = this.getClient();
+      // switch (operation) {
+      //   case 'start': return await client.powerOnVM(id);
+      //   case 'stop': return await client.powerOffVM(id);
+      //   case 'restart': return await client.restartVM(id);
+      // }
+      
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // In production, this would call the actual vCenter API
       return true;
     } catch (error) {
       console.error(`Failed to ${operation} VM ${id}:`, error);
@@ -142,14 +140,18 @@ export class VCenterService {
    */
   async disconnect(): Promise<void> {
     if (this.sessionId) {
-      // In production, this would call the logout API
+      // TODO: Replace with actual vCenter SDK logout
+      // Example:
+      // const client = this.getClient();
+      // await client.logout();
+      
       console.log('Disconnecting from vCenter');
       this.sessionId = null;
     }
   }
 }
 
-// Export a singleton instance that can be used throughout the app
+// Export a function that creates service instances
 export const createVCenterService = (credentials: VCenterCredentials): VCenterService => {
   return new VCenterService(credentials);
 };

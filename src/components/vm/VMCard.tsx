@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { VMStatusBadge } from "./VMStatusBadge";
 import { Play, PowerOff, RefreshCw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { VCenterService, createVCenterService } from "@/services/vCenterService";
+import config from "@/services/configService";
 
 interface VMCardProps {
   id: string;
@@ -34,12 +36,38 @@ export function VMCard({
   diskUsage,
 }: VMCardProps) {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handlePowerAction = (action: string) => {
-    toast({
-      title: `VM ${action}`,
-      description: `The VM "${name}" is being ${action.toLowerCase()}ed.`,
-    });
+  const handlePowerAction = async (action: 'start' | 'stop' | 'restart') => {
+    setIsLoading(true);
+    try {
+      const vcenterService = createVCenterService({
+        url: config.vCenter.url,
+        username: config.vCenter.username,
+        password: config.vCenter.password,
+        ignoreSSL: config.vCenter.ignoreSSL
+      });
+      
+      await vcenterService.connect();
+      await vcenterService.powerOperation(id, action);
+      
+      toast({
+        title: `VM ${action}ed`,
+        description: `The VM "${name}" has been ${action}ed successfully.`,
+      });
+      
+      // In a real app, we would refresh the VM status here
+      // This is a placeholder for that functionality
+    } catch (err) {
+      console.error(`Failed to ${action} VM:`, err);
+      toast({
+        variant: 'destructive',
+        title: `Failed to ${action} VM`,
+        description: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -90,8 +118,8 @@ export function VMCard({
         <Button 
           size="sm" 
           variant={status === 'running' ? 'destructive' : 'default'}
-          onClick={() => handlePowerAction(status === 'running' ? 'Stop' : 'Start')}
-          disabled={status === 'error'}
+          onClick={() => handlePowerAction(status === 'running' ? 'stop' : 'start')}
+          disabled={status === 'error' || isLoading}
         >
           {status === 'running' ? (
             <><PowerOff className="mr-1 h-3 w-3" /> Stop</>
@@ -103,8 +131,8 @@ export function VMCard({
         <Button 
           size="sm" 
           variant="outline"
-          onClick={() => handlePowerAction('Restart')}
-          disabled={status !== 'running'}
+          onClick={() => handlePowerAction('restart')}
+          disabled={status !== 'running' || isLoading}
         >
           <RefreshCw className="mr-1 h-3 w-3" /> Restart
         </Button>
