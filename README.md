@@ -1,69 +1,91 @@
-# Welcome to your Lovable project
+
+# VM Captain
+
+A modern dashboard for managing and monitoring virtual machines using vCenter.
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/423970bf-8aa2-4cef-9311-2ef92474b130
 
-## How can I edit this code?
+## Docker Setup
 
-There are several ways of editing your application.
+This project includes a Docker configuration for easy deployment:
 
-**Use Lovable**
+1. Create a `.env` file based on `.env.example`:
+   ```sh
+   cp .env.example .env
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/423970bf-8aa2-4cef-9311-2ef92474b130) and start prompting.
+2. Edit the `.env` file with your vCenter credentials:
+   ```
+   VITE_VCENTER_URL=https://your-vcenter-server/sdk
+   VITE_VCENTER_USERNAME=administrator@vsphere.local
+   VITE_VCENTER_PASSWORD=your-secure-password
+   VITE_VCENTER_IGNORE_SSL=true
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+3. Build and run the Docker container:
+   ```sh
+   docker-compose up -d
+   ```
 
-**Use your preferred IDE**
+4. Access the application at http://localhost:80
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Development Setup
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+If you want to work locally using your own IDE, you can clone this repo and push changes:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Step 1: Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
+# Step 2: Navigate to the project directory
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
+# Step 3: Install the necessary dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Create and configure .env file
+cp .env.example .env
+# Edit .env with your vCenter credentials
+
+# Step 5: Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Technologies Used
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
+This project is built with:
 
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
+- Docker for production deployment
 
-## How can I deploy this project?
+## vCenter Integration
 
-Simply open [Lovable](https://lovable.dev/projects/423970bf-8aa2-4cef-9311-2ef92474b130) and click on Share -> Publish.
+The application connects to vCenter using the credentials provided in the `.env` file. To configure your vCenter connection:
 
-## I want to use a custom domain - is that possible?
+1. Ensure you have valid vCenter administrator credentials
+2. Update the `.env` file with your vCenter URL, username, and password
+3. Set `VITE_VCENTER_IGNORE_SSL=true` if you want to ignore SSL certificate validation (only for development)
+
+## Deployment
+
+To deploy to production:
+
+1. Build the Docker image:
+   ```sh
+   docker build -t vm-captain .
+   ```
+
+2. Run the container:
+   ```sh
+   docker run -d -p 80:80 --env-file .env vm-captain
+   ```
+
+## Custom Domain
 
 We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
