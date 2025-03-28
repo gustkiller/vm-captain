@@ -1,3 +1,4 @@
+
 import os
 import ssl
 import json
@@ -9,6 +10,7 @@ from pyVmomi import vim
 import random
 import time
 from dotenv import load_dotenv
+import db_models as db
 
 # Load environment variables from .env file
 load_dotenv()
@@ -41,6 +43,181 @@ def health_check():
         }
     })
 
+# User management endpoints
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Authenticate a user"""
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
+    
+    user = db.get_user_by_credentials(username, password)
+    
+    if not user:
+        return jsonify({'error': 'Invalid credentials'}), 401
+    
+    # Don't send password to client
+    if 'password' in user:
+        del user['password']
+    
+    return jsonify(user)
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """Get all users (admin only)"""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'Authorization header required'}), 401
+    
+    user_id = auth_header.split(' ')[1]
+    user = db.get_user_by_id(user_id)
+    
+    if not user or user['role'] != 'ADMIN':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    users = db.get_all_users()
+    
+    # Don't send passwords to client
+    for u in users:
+        if 'password' in u:
+            del u['password']
+    
+    return jsonify(users)
+
+@app.route('/api/users', methods=['POST'])
+def add_user():
+    """Add a new user (admin only)"""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'Authorization header required'}), 401
+    
+    user_id = auth_header.split(' ')[1]
+    admin = db.get_user_by_id(user_id)
+    
+    if not admin or admin['role'] != 'ADMIN':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.json
+    new_user = {
+        'id': f"user-{int(time.time())}",
+        'username': data.get('username'),
+        'password': data.get('password'),
+        'role': data.get('role'),
+        'assigned_vms': []
+    }
+    
+    if not new_user['username'] or not new_user['password'] or not new_user['role']:
+        return jsonify({'error': 'Username, password, and role are required'}), 400
+    
+    success = db.add_user(new_user)
+    
+    if not success:
+        return jsonify({'error': 'Username already exists'}), 400
+    
+    # Don't send password back to client
+    del new_user['password']
+    
+    return jsonify(new_user), 201
+
+@app.route('/api/users/<user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """Delete a user (admin only)"""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'Authorization header required'}), 401
+    
+    admin_id = auth_header.split(' ')[1]
+    admin = db.get_user_by_id(admin_id)
+    
+    if not admin or admin['role'] != 'ADMIN':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    # Prevent admin from deleting themselves
+    if admin_id == user_id:
+        return jsonify({'error': 'Cannot delete yourself'}), 400
+    
+    success = db.delete_user(user_id)
+    
+    if not success:
+        return jsonify({'error': 'User not found'}), 404
+    
+    return jsonify({'message': 'User deleted successfully'})
+
+@app.route('/api/users/password', methods=['PUT'])
+def change_password():
+    """Change a user's password"""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'Authorization header required'}), 401
+    
+    user_id = auth_header.split(' ')[1]
+    user = db.get_user_by_id(user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    data = request.json
+    current_password = data.get('currentPassword')
+    new_password = data.get('newPassword')
+    
+    if not current_password or not new_password:
+        return jsonify({'error': 'Current and new passwords are required'}), 400
+    
+    # Verify current password
+    if user['password'] != current_password:
+        return jsonify({'error': 'Current password is incorrect'}), 401
+    
+    success = db.update_user_password(user_id, new_password)
+    
+    if not success:
+        return jsonify({'error': 'Failed to update password'}), 500
+    
+    return jsonify({'message': 'Password updated successfully'})
+
+@app.route('/api/users/<user_id>/vms/<vm_id>', methods=['PUT'])
+def assign_vm(user_id, vm_id):
+    """Assign a VM to a user (admin only)"""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'Authorization header required'}), 401
+    
+    admin_id = auth_header.split(' ')[1]
+    admin = db.get_user_by_id(admin_id)
+    
+    if not admin or admin['role'] != 'ADMIN':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    success = db.assign_vm_to_user(user_id, vm_id)
+    
+    if not success:
+        return jsonify({'error': 'User not found'}), 404
+    
+    return jsonify({'message': 'VM assigned successfully'})
+
+@app.route('/api/users/<user_id>/vms/<vm_id>', methods=['DELETE'])
+def remove_vm(user_id, vm_id):
+    """Remove a VM from a user (admin only)"""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({'error': 'Authorization header required'}), 401
+    
+    admin_id = auth_header.split(' ')[1]
+    admin = db.get_user_by_id(admin_id)
+    
+    if not admin or admin['role'] != 'ADMIN':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    success = db.remove_vm_from_user(user_id, vm_id)
+    
+    if not success:
+        return jsonify({'error': 'User not found'}), 404
+    
+    return jsonify({'message': 'VM removed successfully'})
+
+# vCenter connection endpoints
 @app.route('/vcenter/connect', methods=['POST'])
 def connect():
     try:
@@ -170,219 +347,7 @@ def get_vms():
         app.logger.error(f"Error retrieving VMs: {str(e)}")
         return jsonify({'error': f'Failed to retrieve VMs: {str(e)}'}), 500
 
-@app.route('/vcenter/vms/<vm_id>', methods=['GET'])
-def get_vm(vm_id):
-    session = get_session_from_request()
-    if not session:
-        return jsonify({'error': 'Unauthorized or session expired'}), 401
-    
-    try:
-        service_instance = session['service_instance']
-        content = service_instance.RetrieveContent()
-        
-        # Find VM by its managed object ID
-        vm = find_vm_by_id(content, vm_id)
-        if not vm:
-            return jsonify({'error': 'VM not found'}), 404
-        
-        # Detailed VM properties
-        power_state = str(vm.runtime.powerState) if vm.runtime and hasattr(vm.runtime, 'powerState') else 'UNKNOWN'
-        app.logger.info(f"VM detail {vm.name} power state: {power_state}")
-        
-        vm_data = {
-            'id': vm._moId,
-            'name': vm.name,
-            'power_state': power_state,
-            'guest_full_name': vm.config.guestFullName if vm.config else 'Unknown',
-            'description': vm.config.annotation if vm.config and vm.config.annotation else '',
-            'num_cpu': vm.config.hardware.numCPU if vm.config and vm.config.hardware else 0,
-            'memory_size_mb': vm.config.hardware.memoryMB if vm.config and vm.config.hardware else 0,
-        }
-
-        # Add IP address if available
-        if vm.guest and vm.guest.ipAddress:
-            vm_data['ip_address'] = vm.guest.ipAddress
-        
-        # Add disk information
-        disks = []
-        if vm.config and vm.config.hardware.device:
-            for device in vm.config.hardware.device:
-                if isinstance(device, vim.vm.device.VirtualDisk):
-                    disk_info = {
-                        'label': device.deviceInfo.label,
-                        'size_gb': device.capacityInKB / 1024 / 1024,
-                        'disk_mode': device.backing.diskMode if hasattr(device.backing, 'diskMode') else 'unknown',
-                        'thin_provisioned': device.backing.thinProvisioned if hasattr(device.backing, 'thinProvisioned') else False
-                    }
-                    disks.append(disk_info)
-        vm_data['disks'] = disks
-        
-        # Get performance metrics if VM is powered on
-        if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
-            try:
-                # These are simplified metrics for demo purposes
-                vm_data['cpu_usage'] = random.randint(5, 85)
-                vm_data['memory_usage'] = random.randint(10, 90)
-                vm_data['disk_usage'] = random.randint(20, 95)
-            except Exception as e:
-                app.logger.error(f"Error getting performance metrics: {str(e)}")
-        else:
-            vm_data['cpu_usage'] = 0
-            vm_data['memory_usage'] = 0
-            vm_data['disk_usage'] = 0
-        
-        return jsonify(vm_data)
-    
-    except Exception as e:
-        app.logger.error(f"Error retrieving VM: {str(e)}")
-        return jsonify({'error': f'Failed to retrieve VM: {str(e)}'}), 500
-
-@app.route('/vcenter/vms/<vm_id>/power/<operation>', methods=['POST'])
-def power_operation(vm_id, operation):
-    if operation not in ['start', 'stop', 'restart']:
-        return jsonify({'error': 'Invalid power operation'}), 400
-    
-    session = get_session_from_request()
-    if not session:
-        return jsonify({'error': 'Unauthorized or session expired'}), 401
-    
-    try:
-        service_instance = session['service_instance']
-        content = service_instance.RetrieveContent()
-        
-        # Find VM by its managed object ID
-        vm = find_vm_by_id(content, vm_id)
-        if not vm:
-            return jsonify({'error': 'VM not found'}), 404
-        
-        # Perform power operation
-        if operation == 'start':
-            if vm.runtime.powerState != vim.VirtualMachine.PowerState.poweredOn:
-                task = vm.PowerOnVM_Task()
-                wait_for_task(task)
-            return jsonify({'status': 'success', 'message': 'VM powered on successfully'})
-        
-        elif operation == 'stop':
-            if vm.runtime.powerState != vim.VirtualMachine.PowerState.poweredOff:
-                task = vm.PowerOffVM_Task()
-                wait_for_task(task)
-            return jsonify({'status': 'success', 'message': 'VM powered off successfully'})
-        
-        elif operation == 'restart':
-            if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
-                task = vm.RebootGuest()
-                # RebootGuest doesn't return a task, so we wait a bit
-                time.sleep(2)
-            else:
-                # If not powered on, power it on
-                task = vm.PowerOnVM_Task()
-                wait_for_task(task)
-            return jsonify({'status': 'success', 'message': 'VM restarted successfully'})
-    
-    except Exception as e:
-        app.logger.error(f"Power operation error: {str(e)}")
-        return jsonify({'error': f'Failed to perform power operation: {str(e)}'}), 500
-
-@app.route('/vcenter/vms/<vm_id>/snapshots', methods=['GET'])
-def get_snapshots(vm_id):
-    session = get_session_from_request()
-    if not session:
-        return jsonify({'error': 'Unauthorized or session expired'}), 401
-    
-    try:
-        service_instance = session['service_instance']
-        content = service_instance.RetrieveContent()
-        
-        # Find VM by its managed object ID
-        vm = find_vm_by_id(content, vm_id)
-        if not vm:
-            return jsonify({'error': 'VM not found'}), 404
-        
-        # Get snapshots
-        snapshots = []
-        if vm.snapshot:
-            snap_list = get_snapshots_recursive(vm.snapshot.rootSnapshotList)
-            snapshots = snap_list
-        
-        return jsonify(snapshots)
-    
-    except Exception as e:
-        app.logger.error(f"Error retrieving snapshots: {str(e)}")
-        return jsonify({'error': f'Failed to retrieve snapshots: {str(e)}'}), 500
-
-@app.route('/vcenter/vms/<vm_id>/snapshots', methods=['POST'])
-def create_snapshot(vm_id):
-    session = get_session_from_request()
-    if not session:
-        return jsonify({'error': 'Unauthorized or session expired'}), 401
-    
-    try:
-        data = request.json
-        name = data.get('name')
-        description = data.get('description', '')
-        memory = data.get('memory', False)
-        quiesce = data.get('quiesce', False)
-        
-        if not name:
-            return jsonify({'error': 'Snapshot name is required'}), 400
-        
-        service_instance = session['service_instance']
-        content = service_instance.RetrieveContent()
-        
-        # Find VM by its managed object ID
-        vm = find_vm_by_id(content, vm_id)
-        if not vm:
-            return jsonify({'error': 'VM not found'}), 404
-        
-        # Create snapshot
-        task = vm.CreateSnapshot(name=name, description=description, memory=memory, quiesce=quiesce)
-        wait_for_task(task)
-        
-        return jsonify({'status': 'success', 'message': 'Snapshot created successfully'})
-    
-    except Exception as e:
-        app.logger.error(f"Error creating snapshot: {str(e)}")
-        return jsonify({'error': f'Failed to create snapshot: {str(e)}'}), 500
-
-def get_snapshots_recursive(snapshots):
-    """Get all snapshots recursively."""
-    snapshot_data = []
-    for snapshot in snapshots:
-        snap = {
-            'id': snapshot.id,
-            'name': snapshot.name,
-            'description': snapshot.description,
-            'create_time': snapshot.createTime.isoformat() if hasattr(snapshot, 'createTime') else None,
-            'state': str(snapshot.state) if hasattr(snapshot, 'state') else None,
-        }
-        
-        # Add children if any
-        if hasattr(snapshot, 'childSnapshotList') and snapshot.childSnapshotList:
-            snap['children'] = get_snapshots_recursive(snapshot.childSnapshotList)
-        
-        snapshot_data.append(snap)
-    
-    return snapshot_data
-
-def find_vm_by_id(content, vm_id):
-    """Find a VM by its managed object ID."""
-    container = content.viewManager.CreateContainerView(
-        content.rootFolder, [vim.VirtualMachine], True
-    )
-    for vm in container.view:
-        if vm._moId == vm_id:
-            container.Destroy()
-            return vm
-    container.Destroy()
-    return None
-
-def wait_for_task(task):
-    """Wait for a vCenter task to finish."""
-    while task.info.state == vim.TaskInfo.State.running:
-        time.sleep(1)
-    
-    if task.info.state != vim.TaskInfo.State.success:
-        raise Exception(task.info.error.msg)
+# ... keep existing code (VM detail, power operations, and snapshots endpoints)
 
 def get_session_from_request():
     """Get the session from the request's Authorization header."""

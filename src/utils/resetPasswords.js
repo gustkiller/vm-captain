@@ -1,47 +1,25 @@
 
 // This file is not included in the main application bundle
-// It's a standalone script to reset passwords in the database
+// It's a standalone script to reset passwords in the SQLite database
 
-// In a real application with a real SQLite database, you would run this script with Node.js
-// This is a simulated version that shows how it would work
-
-function resetPasswords() {
-  console.log('Resetting admin and user passwords to defaults...');
+/* 
+  INSTRUCTIONS:
   
-  try {
-    // For this simulated version, we directly modify sessionStorage
-    // In a real application, this would connect to the SQLite database
-    const storedUsers = sessionStorage.getItem('db_users');
-    if (storedUsers) {
-      const users = JSON.parse(storedUsers);
-      
-      // Find and update admin user
-      const adminUser = users.find(u => u.username === 'admin');
-      if (adminUser) {
-        adminUser.password = '123456';
-        console.log('Admin password reset to 123456');
-      }
-      
-      // Find and update standard user
-      const standardUser = users.find(u => u.username === 'user');
-      if (standardUser) {
-        standardUser.password = '123456';
-        console.log('User password reset to 123456');
-      }
-      
-      // Save changes back to sessionStorage
-      sessionStorage.setItem('db_users', JSON.stringify(users));
-      console.log('Passwords reset successfully.');
-    } else {
-      console.log('No user database found.');
-    }
-  } catch (error) {
-    console.error('Error resetting passwords:', error);
-  }
-}
+  To reset passwords in a Docker environment:
+  
+  1. Run this command to access the backend container shell:
+     docker-compose exec backend /bin/bash
+  
+  2. Inside the container, run:
+     python /app/reset_passwords.py
+  
+  This will reset the admin and user passwords to "123456"
+*/
 
-// To use this script, open your browser's developer console and run:
-// resetPasswords()
+console.log('This script is meant to be run on the server side.');
+console.log('Please follow the instructions in the comments to reset passwords.');
 
-// Export for potential use in admin tools
-module.exports = { resetPasswords };
+// For command-line use only - this exports nothing useful for the browser
+module.exports = { 
+  info: 'See comments for instructions on how to reset passwords in the SQLite database' 
+};

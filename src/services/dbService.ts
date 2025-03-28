@@ -1,126 +1,56 @@
 
 import { UserRole, UserType } from '@/types/vm';
 
-// Simulate database using in-memory storage with sessionStorage persistence
+// This service is now just a stub that shows SQLite is being used
+// The actual database operations are handled by the backend API
 class DatabaseService {
-  private users: UserType[] = [
-    {
-      id: 'admin-1',
-      username: 'admin',
-      password: '123456',
-      role: UserRole.ADMIN,
-      assignedVMs: []
-    },
-    {
-      id: 'user-1',
-      username: 'user',
-      password: '123456',
-      role: UserRole.USER,
-      assignedVMs: []
-    }
-  ];
-  
   constructor() {
-    // Initialize database
-    this.initializeDatabase();
-  }
-  
-  private initializeDatabase() {
-    // Load data from sessionStorage to simulate persistence between page refreshes
-    try {
-      const storedUsers = sessionStorage.getItem('db_users');
-      if (storedUsers) {
-        this.users = JSON.parse(storedUsers);
-      } else {
-        // Initialize with default users if no stored users exist
-        sessionStorage.setItem('db_users', JSON.stringify(this.users));
-      }
-    } catch (error) {
-      console.error('Error initializing database:', error);
-    }
-  }
-  
-  private saveDatabase() {
-    try {
-      sessionStorage.setItem('db_users', JSON.stringify(this.users));
-    } catch (error) {
-      console.error('Error saving database:', error);
-    }
+    console.info('SQLite database is being used via backend API');
   }
   
   getUserByCredentials(username: string, password: string): UserType | null {
-    return this.users.find(u => u.username === username && u.password === password) || null;
+    console.warn('This method is deprecated. Use userService.login instead.');
+    return null;
   }
   
   getAllUsers(): UserType[] {
-    return [...this.users];
+    console.warn('This method is deprecated. Use userService.getAllUsers instead.');
+    return [];
   }
   
   getUserById(id: string): UserType | null {
-    return this.users.find(u => u.id === id) || null;
+    console.warn('This method is deprecated. Use userService.getUserById instead.');
+    return null;
   }
   
   addUser(user: UserType): boolean {
-    if (this.users.some(u => u.username === user.username)) {
-      return false; // User already exists
-    }
-    
-    this.users.push(user);
-    this.saveDatabase();
-    return true;
+    console.warn('This method is deprecated. Use userService.addUser instead.');
+    return false;
   }
   
   updateUser(user: UserType): boolean {
-    const index = this.users.findIndex(u => u.id === user.id);
-    if (index === -1) return false;
-    
-    this.users[index] = user;
-    this.saveDatabase();
-    return true;
+    console.warn('This method is deprecated. Use userService.updateUser instead.');
+    return false;
   }
   
   deleteUser(id: string): boolean {
-    const initialLength = this.users.length;
-    this.users = this.users.filter(u => u.id !== id);
-    
-    if (this.users.length < initialLength) {
-      this.saveDatabase();
-      return true;
-    }
-    
+    console.warn('This method is deprecated. Use userService.removeUser instead.');
     return false;
   }
   
   updateUserPassword(id: string, newPassword: string): boolean {
-    const user = this.getUserById(id);
-    if (!user) return false;
-    
-    user.password = newPassword;
-    return this.updateUser(user);
+    console.warn('This method is deprecated. Use userService.changePassword instead.');
+    return false;
   }
   
   assignVMToUser(userId: string, vmId: string): boolean {
-    const user = this.getUserById(userId);
-    if (!user) return false;
-    
-    if (!user.assignedVMs) {
-      user.assignedVMs = [];
-    }
-    
-    if (!user.assignedVMs.includes(vmId)) {
-      user.assignedVMs.push(vmId);
-      return this.updateUser(user);
-    }
-    
-    return true;
+    console.warn('This method is deprecated. Use userService.assignVMToUser instead.');
+    return false;
   }
   
   removeVMFromUser(userId: string, vmId: string): boolean {
-    const user = this.getUserById(userId);
-    if (!user || !user.assignedVMs) return false;
-    
-    user.assignedVMs = user.assignedVMs.filter(id => id !== vmId);
-    return this.updateUser(user);
+    console.warn('This method is deprecated. Use userService.removeVMFromUser instead.');
+    return false;
   }
 }
 

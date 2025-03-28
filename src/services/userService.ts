@@ -1,9 +1,10 @@
 
 import { UserType, UserRole, VMType } from '@/types/vm';
-import { dbService } from './dbService';
+import { toast } from 'sonner';
 
 class UserService {
   private currentUser: UserType | null = null;
+  private baseUrl = '/api';
 
   constructor() {
     // Check for saved user session
@@ -34,36 +35,58 @@ class UserService {
     }
   }
 
-  login(username: string, password: string): boolean {
-    const user = dbService.getUserByCredentials(username, password);
-    if (user) {
+  async login(username: string, password: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData.error);
+        return false;
+      }
+
+      const user = await response.json();
       this.currentUser = user;
       this.saveSession();
       return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   }
 
-  changePassword(currentPassword: string, newPassword: string): boolean {
+  async changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
     if (!this.currentUser) {
       return false;
     }
-    
-    // Verify current password
-    const user = dbService.getUserByCredentials(this.currentUser.username, currentPassword);
-    
-    if (!user) {
+
+    try {
+      const response = await fetch(`${this.baseUrl}/users/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.currentUser.id}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Change password failed:', errorData.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Change password error:', error);
       return false;
     }
-    
-    // Update password
-    const success = dbService.updateUserPassword(user.id, newPassword);
-    if (success) {
-      // Update current user
-      this.currentUser = dbService.getUserById(user.id);
-      this.saveSession();
-    }
-    return success;
   }
 
   logout(): void {
@@ -79,32 +102,95 @@ class UserService {
     return this.currentUser?.role === UserRole.ADMIN;
   }
 
-  getAllUsers(): UserType[] {
-    if (!this.isAdmin()) {
+  async getAllUsers(): Promise<UserType[]> {
+    if (!this.isAdmin() || !this.currentUser) {
       return [];
     }
-    return dbService.getAllUsers();
+
+    try {
+      const response = await fetch(`${this.baseUrl}/users`, {
+        headers: {
+          'Authorization': `Bearer ${this.currentUser.id}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Get users failed:', errorData.error);
+        return [];
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Get users error:', error);
+      return [];
+    }
   }
 
-  getUserById(id: string): UserType | null {
-    if (!this.isAdmin()) {
+  async getUserById(id: string): Promise<UserType | null> {
+    if (!this.isAdmin() || !this.currentUser) {
       return null;
     }
-    return dbService.getUserById(id);
+
+    try {
+      const users = await this.getAllUsers();
+      return users.find(u => u.id === id) || null;
+    } catch (error) {
+      console.error('Get user by ID error:', error);
+      return null;
+    }
   }
 
-  assignVMToUser(userId: string, vmId: string): boolean {
-    if (!this.isAdmin()) {
+  async assignVMToUser(userId: string, vmId: string): Promise<boolean> {
+    if (!this.isAdmin() || !this.currentUser) {
       return false;
     }
-    return dbService.assignVMToUser(userId, vmId);
+
+    try {
+      const response = await fetch(`${this.baseUrl}/users/${userId}/vms/${vmId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${this.currentUser.id}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Assign VM failed:', errorData.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Assign VM error:', error);
+      return false;
+    }
   }
 
-  removeVMFromUser(userId: string, vmId: string): boolean {
-    if (!this.isAdmin()) {
+  async removeVMFromUser(userId: string, vmId: string): Promise<boolean> {
+    if (!this.isAdmin() || !this.currentUser) {
       return false;
     }
-    return dbService.removeVMFromUser(userId, vmId);
+
+    try {
+      const response = await fetch(`${this.baseUrl}/users/${userId}/vms/${vmId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.currentUser.id}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Remove VM failed:', errorData.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Remove VM error:', error);
+      return false;
+    }
   }
 
   getAssignedVMs(vms: VMType[]): VMType[] {
@@ -123,34 +209,63 @@ class UserService {
     return vms.filter(vm => this.currentUser?.assignedVMs?.includes(vm.id));
   }
 
-  addUser(username: string, password: string, role: UserRole): UserType | null {
-    if (!this.isAdmin()) {
+  async addUser(username: string, password: string, role: UserRole): Promise<UserType | null> {
+    if (!this.isAdmin() || !this.currentUser) {
       return null;
     }
 
-    const newUser: UserType = {
-      id: `user-${Date.now()}`,
-      username,
-      password,
-      role,
-      assignedVMs: []
-    };
+    try {
+      const response = await fetch(`${this.baseUrl}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.currentUser.id}`,
+        },
+        body: JSON.stringify({ username, password, role }),
+      });
 
-    const success = dbService.addUser(newUser);
-    return success ? newUser : null;
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Add user failed:', errorData.error);
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Add user error:', error);
+      return null;
+    }
   }
 
-  removeUser(userId: string): boolean {
-    if (!this.isAdmin()) {
+  async removeUser(userId: string): Promise<boolean> {
+    if (!this.isAdmin() || !this.currentUser) {
       return false;
     }
 
     // Prevent removal of current user
-    if (this.currentUser?.id === userId) {
+    if (this.currentUser.id === userId) {
       return false;
     }
-    
-    return dbService.deleteUser(userId);
+
+    try {
+      const response = await fetch(`${this.baseUrl}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${this.currentUser.id}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Remove user failed:', errorData.error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Remove user error:', error);
+      return false;
+    }
   }
 }
 

@@ -27,10 +27,12 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=production
+      - DB_FILE=/app/data/vm_captain.db
     env_file:
       - .env
     volumes:
       - ./.env:/app/.env
+      - sqlite_data:/app/data
     networks:
       - vm-captain-network
 
@@ -40,3 +42,7 @@ networks:
     ipam:
       config:
         - subnet: 192.168.100.0/24
+
+volumes:
+  sqlite_data:
+    driver: local
