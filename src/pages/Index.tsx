@@ -1,13 +1,27 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import MainLayout from '@/components/layout/MainLayout';
+import { VMCard } from '@/components/vm/VMCard';
+import { mockVMData } from '@/services/mockData';
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <MainLayout title="Dashboard">
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Welcome to VM Captain</h2>
+          <p className="text-muted-foreground">
+            Manage and monitor your virtual machines from a central dashboard
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {mockVMData.map(vm => (
+            <VMCard key={vm.id} vm={vm} />
+          ))}
+        </div>
       </div>
-    </div>
+    </MainLayout>
   );
 };
 
