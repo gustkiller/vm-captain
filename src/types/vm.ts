@@ -7,6 +7,13 @@ export enum VMStatus {
   ERROR = 'ERROR'
 }
 
+export interface DiskType {
+  label: string;
+  size_gb: number;
+  disk_mode: string;
+  thin_provisioned: boolean;
+}
+
 export interface VMType {
   id: string;
   name: string;
@@ -18,4 +25,5 @@ export interface VMType {
   cpuUsage: number;
   memoryUsage: number;
   diskUsage: number;
+  disks?: DiskType[];
 }

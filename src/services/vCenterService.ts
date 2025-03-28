@@ -1,5 +1,6 @@
 
 import { VMType, VMStatus } from '@/types/vm';
+import { SnapshotType } from '@/types/snapshot';
 
 export class VCenterConnectionError extends Error {
   constructor(message: string) {
@@ -156,6 +157,82 @@ export class VCenterService {
   }
 
   /**
+   * Get snapshots for a specific VM
+   */
+  async getSnapshots(id: string): Promise<SnapshotType[]> {
+    if (!this.sessionId) {
+      await this.connect();
+    }
+    
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/vcenter/vms/${id}/snapshots`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.sessionId}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || 'Unknown error';
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${errorText || 'No error details available'}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const snapshots = await response.json();
+      return snapshots;
+    } catch (error) {
+      console.error(`Failed to fetch snapshots for VM ${id}:`, error);
+      throw new VCenterConnectionError(`Failed to fetch snapshots: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create a snapshot for a specific VM
+   */
+  async createSnapshot(id: string, name: string, description: string = '', memory: boolean = false, quiesce: boolean = false): Promise<void> {
+    if (!this.sessionId) {
+      await this.connect();
+    }
+    
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/vcenter/vms/${id}/snapshots`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.sessionId}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          memory,
+          quiesce
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || 'Unknown error';
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${errorText || 'No error details available'}`;
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error(`Failed to create snapshot for VM ${id}:`, error);
+      throw new VCenterConnectionError(`Failed to create snapshot: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Power operations for VMs
    */
   async powerOperation(id: string, operation: 'start' | 'stop' | 'restart'): Promise<boolean> {
@@ -246,7 +323,8 @@ export class VCenterService {
       memory: vmData.memory_size_mb ? Math.round(vmData.memory_size_mb / 1024) : 0,
       cpuUsage: vmData.cpu_usage || 0,
       memoryUsage: vmData.memory_usage || 0,
-      diskUsage: vmData.disk_usage || 0
+      diskUsage: vmData.disk_usage || 0,
+      disks: vmData.disks || []
     };
   }
 }

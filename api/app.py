@@ -137,27 +137,19 @@ def get_vms():
         
         vms = []
         for vm in container.view:
-            # Basic VM properties
+            # Only basic VM properties for list view
             vm_data = {
                 'id': vm._moId,
                 'name': vm.name,
                 'power_state': str(vm.runtime.powerState),
                 'guest_full_name': vm.config.guestFullName if vm.config else 'Unknown',
-                'description': vm.config.annotation if vm.config and vm.config.annotation else '',
-                'num_cpu': vm.config.hardware.numCPU if vm.config and vm.config.hardware else 0,
-                'memory_size_mb': vm.config.hardware.memoryMB if vm.config and vm.config.hardware else 0,
             }
             
             # Get performance metrics if VM is powered on
             if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
-                try:
-                    # These are very simplified metrics
-                    # In a real scenario, you'd use the Performance Manager to get actual metrics
-                    vm_data['cpu_usage'] = random.randint(5, 85)  # Simplified for demo
-                    vm_data['memory_usage'] = random.randint(10, 90)  # Simplified for demo
-                    vm_data['disk_usage'] = random.randint(20, 95)  # Simplified for demo
-                except Exception as e:
-                    app.logger.error(f"Error getting performance metrics: {str(e)}")
+                vm_data['cpu_usage'] = random.randint(5, 85)  # Simplified for demo
+                vm_data['memory_usage'] = random.randint(10, 90)  # Simplified for demo
+                vm_data['disk_usage'] = random.randint(20, 95)  # Simplified for demo
             else:
                 vm_data['cpu_usage'] = 0
                 vm_data['memory_usage'] = 0
@@ -187,7 +179,7 @@ def get_vm(vm_id):
         if not vm:
             return jsonify({'error': 'VM not found'}), 404
         
-        # Basic VM properties
+        # Detailed VM properties
         vm_data = {
             'id': vm._moId,
             'name': vm.name,
@@ -197,6 +189,20 @@ def get_vm(vm_id):
             'num_cpu': vm.config.hardware.numCPU if vm.config and vm.config.hardware else 0,
             'memory_size_mb': vm.config.hardware.memoryMB if vm.config and vm.config.hardware else 0,
         }
+        
+        # Add disk information
+        disks = []
+        if vm.config and vm.config.hardware.device:
+            for device in vm.config.hardware.device:
+                if isinstance(device, vim.vm.device.VirtualDisk):
+                    disk_info = {
+                        'label': device.deviceInfo.label,
+                        'size_gb': device.capacityInKB / 1024 / 1024,
+                        'disk_mode': device.backing.diskMode if hasattr(device.backing, 'diskMode') else 'unknown',
+                        'thin_provisioned': device.backing.thinProvisioned if hasattr(device.backing, 'thinProvisioned') else False
+                    }
+                    disks.append(disk_info)
+        vm_data['disks'] = disks
         
         # Get performance metrics if VM is powered on
         if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
@@ -264,6 +270,87 @@ def power_operation(vm_id, operation):
         app.logger.error(f"Power operation error: {str(e)}")
         return jsonify({'error': f'Failed to perform power operation: {str(e)}'}), 500
 
+@app.route('/vcenter/vms/<vm_id>/snapshots', methods=['GET'])
+def get_snapshots(vm_id):
+    session = get_session_from_request()
+    if not session:
+        return jsonify({'error': 'Unauthorized or session expired'}), 401
+    
+    try:
+        service_instance = session['service_instance']
+        content = service_instance.RetrieveContent()
+        
+        # Find VM by its managed object ID
+        vm = find_vm_by_id(content, vm_id)
+        if not vm:
+            return jsonify({'error': 'VM not found'}), 404
+        
+        # Get snapshots
+        snapshots = []
+        if vm.snapshot:
+            snap_list = get_snapshots_recursive(vm.snapshot.rootSnapshotList)
+            snapshots = snap_list
+        
+        return jsonify(snapshots)
+    
+    except Exception as e:
+        app.logger.error(f"Error retrieving snapshots: {str(e)}")
+        return jsonify({'error': f'Failed to retrieve snapshots: {str(e)}'}), 500
+
+@app.route('/vcenter/vms/<vm_id>/snapshots', methods=['POST'])
+def create_snapshot(vm_id):
+    session = get_session_from_request()
+    if not session:
+        return jsonify({'error': 'Unauthorized or session expired'}), 401
+    
+    try:
+        data = request.json
+        name = data.get('name')
+        description = data.get('description', '')
+        memory = data.get('memory', False)
+        quiesce = data.get('quiesce', False)
+        
+        if not name:
+            return jsonify({'error': 'Snapshot name is required'}), 400
+        
+        service_instance = session['service_instance']
+        content = service_instance.RetrieveContent()
+        
+        # Find VM by its managed object ID
+        vm = find_vm_by_id(content, vm_id)
+        if not vm:
+            return jsonify({'error': 'VM not found'}), 404
+        
+        # Create snapshot
+        task = vm.CreateSnapshot(name=name, description=description, memory=memory, quiesce=quiesce)
+        wait_for_task(task)
+        
+        return jsonify({'status': 'success', 'message': 'Snapshot created successfully'})
+    
+    except Exception as e:
+        app.logger.error(f"Error creating snapshot: {str(e)}")
+        return jsonify({'error': f'Failed to create snapshot: {str(e)}'}), 500
+
+def get_snapshots_recursive(snapshots):
+    """Get all snapshots recursively."""
+    snapshot_data = []
+    for snapshot in snapshots:
+        snap = {
+            'id': snapshot.id,
+            'name': snapshot.name,
+            'description': snapshot.description,
+            'create_time': snapshot.createTime.isoformat() if hasattr(snapshot, 'createTime') else None,
+            'state': str(snapshot.state) if hasattr(snapshot, 'state') else None,
+        }
+        
+        # Add children if any
+        if hasattr(snapshot, 'childSnapshotList') and snapshot.childSnapshotList:
+            snap['children'] = get_snapshots_recursive(snapshot.childSnapshotList)
+        
+        snapshot_data.append(snap)
+    
+    return snapshot_data
+
 def find_vm_by_id(content, vm_id):
     """Find a VM by its managed object ID."""
     container = content.viewManager.CreateContainerView(
@@ -312,8 +399,6 @@ def cleanup_sessions():
         except:
             pass
         del sessions[session_id]
-
-# Removed duplicate health_check endpoint here
 
 if __name__ == '__main__':
     # Enable more detailed logging

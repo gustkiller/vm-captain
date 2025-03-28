@@ -76,11 +76,8 @@ const Index = () => {
                 key={vm.id}
                 id={vm.id}
                 name={vm.name}
-                description={vm.description || 'No description available'}
                 status={vm.status.toLowerCase() as any}
                 os={vm.os || 'Unknown OS'}
-                cpu={vm.cpu}
-                memory={vm.memory}
                 cpuUsage={vm.cpuUsage}
                 memoryUsage={vm.memoryUsage}
                 diskUsage={vm.diskUsage}
