@@ -1,3 +1,4 @@
+
 import { VMType, VMStatus } from '@/types/vm';
 import { SnapshotType } from '@/types/snapshot';
 
@@ -298,18 +299,25 @@ export class VCenterService {
     // Convert API response to our VMType
     let status: VMStatus = VMStatus.STOPPED;
     
-    switch(vmData.power_state?.toUpperCase()) {
+    // Improved power state mapping to ensure status is correctly parsed
+    const powerState = vmData.power_state?.toUpperCase();
+    console.log(`VM ${vmData.name} has power state: ${powerState}`);
+    
+    switch(powerState) {
       case 'POWERED_ON':
+      case 'POWEREDON':
         status = VMStatus.RUNNING;
         break;
       case 'POWERED_OFF':
+      case 'POWEREDOFF':
         status = VMStatus.STOPPED;
         break;
       case 'SUSPENDED':
         status = VMStatus.SUSPENDED;
         break;
       default:
-        status = vmData.power_state ? VMStatus.ERROR : VMStatus.STOPPED;
+        // If power state exists but isn't recognized, mark as ERROR
+        status = powerState ? VMStatus.ERROR : VMStatus.STOPPED;
     }
 
     return {

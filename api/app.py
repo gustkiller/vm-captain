@@ -137,10 +137,13 @@ def get_vms():
         vms = []
         for vm in container.view:
             # Only basic VM properties for list view
+            power_state = str(vm.runtime.powerState) if vm.runtime and hasattr(vm.runtime, 'powerState') else 'UNKNOWN'
+            app.logger.info(f"VM {vm.name} power state: {power_state}")
+            
             vm_data = {
                 'id': vm._moId,
                 'name': vm.name,
-                'power_state': str(vm.runtime.powerState),
+                'power_state': power_state,
                 'guest_full_name': vm.config.guestFullName if vm.config else 'Unknown',
             }
             
@@ -183,10 +186,13 @@ def get_vm(vm_id):
             return jsonify({'error': 'VM not found'}), 404
         
         # Detailed VM properties
+        power_state = str(vm.runtime.powerState) if vm.runtime and hasattr(vm.runtime, 'powerState') else 'UNKNOWN'
+        app.logger.info(f"VM detail {vm.name} power state: {power_state}")
+        
         vm_data = {
             'id': vm._moId,
             'name': vm.name,
-            'power_state': str(vm.runtime.powerState),
+            'power_state': power_state,
             'guest_full_name': vm.config.guestFullName if vm.config else 'Unknown',
             'description': vm.config.annotation if vm.config and vm.config.annotation else '',
             'num_cpu': vm.config.hardware.numCPU if vm.config and vm.config.hardware else 0,
