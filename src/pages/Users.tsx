@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { userService } from '@/services/userService';
 import { UserRole, UserType } from '@/types/vm';
@@ -47,12 +47,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { AlertCircle, Plus, Shield, Trash2, User, UserPlus, Lock } from 'lucide-react';
+import { AlertCircle, Plus, Shield, Trash2, User, UserPlus, Lock, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
 const Users = () => {
-  const [users, setUsers] = useState<UserType[]>(userService.getAllUsers());
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [loading, setLoading] = useState(true);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>(UserRole.USER);
@@ -60,7 +61,30 @@ const Users = () => {
   const { toast } = useToast();
   const currentUser = userService.getCurrentUser();
   
-  const handleAddUser = () => {
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (userService.isAdmin()) {
+        setLoading(true);
+        try {
+          const fetchedUsers = await userService.getAllUsers();
+          setUsers(fetchedUsers);
+        } catch (err) {
+          console.error('Failed to load users:', err);
+          toast({
+            title: "Error",
+            description: "Failed to load users",
+            variant: "destructive"
+          });
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadUsers();
+  }, [toast]);
+  
+  const handleAddUser = async () => {
     if (!newUsername.trim()) {
       toast({
         title: "Error",
@@ -79,14 +103,15 @@ const Users = () => {
       return;
     }
     
-    const newUser = userService.addUser(newUsername, newPassword, newUserRole);
+    const newUser = await userService.addUser(newUsername, newPassword, newUserRole);
     
     if (newUser) {
       toast({
         title: "Success",
         description: `User ${newUsername} added successfully`,
       });
-      setUsers(userService.getAllUsers());
+      const updatedUsers = await userService.getAllUsers();
+      setUsers(updatedUsers);
       setNewUsername('');
       setNewPassword('');
       setNewUserRole(UserRole.USER);
@@ -94,20 +119,21 @@ const Users = () => {
     } else {
       toast({
         title: "Error",
-        description: "Username already exists",
+        description: "Username already exists or failed to add user",
         variant: "destructive"
       });
     }
   };
   
-  const handleDeleteUser = (userId: string) => {
-    const result = userService.removeUser(userId);
+  const handleDeleteUser = async (userId: string) => {
+    const result = await userService.removeUser(userId);
     if (result) {
       toast({
         title: "Success",
         description: "User removed successfully",
       });
-      setUsers(userService.getAllUsers());
+      const updatedUsers = await userService.getAllUsers();
+      setUsers(updatedUsers);
     } else {
       toast({
         title: "Error",
@@ -207,79 +233,93 @@ const Users = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Assigned VMs</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.username}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === UserRole.ADMIN ? "default" : "secondary"}>
-                        {user.role === UserRole.ADMIN ? (
-                          <div className="flex items-center gap-1">
-                            <Shield className="h-3 w-3" />
-                            <span>Admin</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span>User</span>
-                          </div>
-                        )}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {user.assignedVMs ? user.assignedVMs.length : 0} VMs
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end">
-                        <Button variant="outline" size="sm" asChild className="mr-2">
-                          <a href={`/users/${user.id}/vms`}>
-                            Assign VMs
-                          </a>
-                        </Button>
-                        
-                        {/* Prevent deletion of the current user */}
-                        {user.id !== currentUser?.id && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="sm">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete the user "{user.username}"?
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteUser(user.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </TableCell>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Assigned VMs</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        No users found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.username}</TableCell>
+                        <TableCell>
+                          <Badge variant={user.role === UserRole.ADMIN ? "default" : "secondary"}>
+                            {user.role === UserRole.ADMIN ? (
+                              <div className="flex items-center gap-1">
+                                <Shield className="h-3 w-3" />
+                                <span>Admin</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                <span>User</span>
+                              </div>
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user.assignedVMs ? user.assignedVMs.length : 0} VMs
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end">
+                            <Button variant="outline" size="sm" asChild className="mr-2">
+                              <a href={`/users/${user.id}/vms`}>
+                                Assign VMs
+                              </a>
+                            </Button>
+                            
+                            {/* Prevent deletion of the current user */}
+                            {user.id !== currentUser?.id && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="sm">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete the user "{user.username}"?
+                                      This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDeleteUser(user.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>

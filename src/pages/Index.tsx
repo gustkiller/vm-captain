@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { VMCard } from '@/components/vm/VMCard';
-import { VMType } from '@/types/vm';
+import { VMType, UserType } from '@/types/vm';
 import { VCenterService, createVCenterService } from '@/services/vCenterService';
 import config from '@/services/configService';
 import { useToast } from '@/hooks/use-toast';
@@ -25,9 +25,29 @@ const Index = () => {
   const [vms, setVMs] = useState<VMType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  // Load users
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (userService.isAdmin()) {
+        setLoadingUsers(true);
+        try {
+          const fetchedUsers = await userService.getAllUsers();
+          setUsers(fetchedUsers);
+        } catch (err) {
+          console.error('Failed to load users:', err);
+        } finally {
+          setLoadingUsers(false);
+        }
+      }
+    };
+    
+    loadUsers();
+  }, []);
 
   useEffect(() => {
     // Check if user is logged in
@@ -99,16 +119,24 @@ const Index = () => {
                   <div className="py-4">
                     <h3 className="font-medium mb-2">Users</h3>
                     <div className="space-y-2">
-                      {userService.getAllUsers().map(user => (
-                        <div key={user.id} className="p-3 border rounded-md">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">{user.username}</p>
-                              <p className="text-xs text-muted-foreground">Role: {user.role}</p>
+                      {loadingUsers ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : users.length > 0 ? (
+                        users.map(user => (
+                          <div key={user.id} className="p-3 border rounded-md">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium">{user.username}</p>
+                                <p className="text-xs text-muted-foreground">Role: {user.role}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No users found</p>
+                      )}
                     </div>
                   </div>
                 </SheetContent>
@@ -132,14 +160,19 @@ const Index = () => {
                     <div className="mb-4">
                       <h3 className="font-medium mb-2">Select User</h3>
                       <div className="space-y-2">
-                        {userService.getAllUsers()
-                          .filter(user => user.role === 'USER')
-                          .map(user => (
-                            <div key={user.id} className="flex items-center p-2 border rounded hover:bg-accent cursor-pointer">
-                              <span>{user.username}</span>
-                            </div>
-                          ))
-                        }
+                        {loadingUsers ? (
+                          <div className="flex justify-center py-4">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : (
+                          users
+                            .filter(user => user.role === 'USER')
+                            .map(user => (
+                              <div key={user.id} className="flex items-center p-2 border rounded hover:bg-accent cursor-pointer">
+                                <span>{user.username}</span>
+                              </div>
+                            ))
+                        )}
                       </div>
                     </div>
                     

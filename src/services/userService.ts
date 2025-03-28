@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 class UserService {
   private currentUser: UserType | null = null;
   private baseUrl = '/api';
+  private cachedUsers: UserType[] | null = null;
 
   constructor() {
     // Check for saved user session
@@ -102,9 +103,15 @@ class UserService {
     return this.currentUser?.role === UserRole.ADMIN;
   }
 
+  // Return cached users if available, otherwise fetch new ones
   async getAllUsers(): Promise<UserType[]> {
     if (!this.isAdmin() || !this.currentUser) {
       return [];
+    }
+
+    // Use cached users if available
+    if (this.cachedUsers) {
+      return this.cachedUsers;
     }
 
     try {
@@ -120,16 +127,30 @@ class UserService {
         return [];
       }
 
-      return await response.json();
+      const users = await response.json();
+      this.cachedUsers = users;
+      return users;
     } catch (error) {
       console.error('Get users error:', error);
       return [];
     }
   }
 
+  // Synchronous method for immediate UI needs
+  // Returns cached users or empty array if not loaded yet
+  getSyncUsers(): UserType[] {
+    return this.cachedUsers || [];
+  }
+
   async getUserById(id: string): Promise<UserType | null> {
     if (!this.isAdmin() || !this.currentUser) {
       return null;
+    }
+
+    // Try to find in cached users first
+    if (this.cachedUsers) {
+      const cachedUser = this.cachedUsers.find(u => u.id === id);
+      if (cachedUser) return cachedUser;
     }
 
     try {
@@ -160,6 +181,8 @@ class UserService {
         return false;
       }
 
+      // Invalidate cache
+      this.cachedUsers = null;
       return true;
     } catch (error) {
       console.error('Assign VM error:', error);
@@ -186,6 +209,8 @@ class UserService {
         return false;
       }
 
+      // Invalidate cache
+      this.cachedUsers = null;
       return true;
     } catch (error) {
       console.error('Remove VM error:', error);
@@ -230,6 +255,9 @@ class UserService {
         return null;
       }
 
+      // Invalidate cache
+      this.cachedUsers = null;
+      
       return await response.json();
     } catch (error) {
       console.error('Add user error:', error);
@@ -261,6 +289,9 @@ class UserService {
         return false;
       }
 
+      // Invalidate cache
+      this.cachedUsers = null;
+      
       return true;
     } catch (error) {
       console.error('Remove user error:', error);
