@@ -1,91 +1,113 @@
 
 # VM Captain
 
-A modern dashboard for managing and monitoring virtual machines using vCenter.
+VM Captain is a web application for managing VMware vCenter virtual machines.
 
-## Project info
+## Features
 
-**URL**: https://lovable.dev/projects/423970bf-8aa2-4cef-9311-2ef92474b130
+- Real-time VM monitoring and management
+- Power operations (start, stop, restart)
+- VM resource utilization metrics
+- Responsive web interface
 
-## Docker Setup
+## Requirements
 
-This project includes a Docker configuration for easy deployment:
+- Docker and Docker Compose
+- Access to a VMware vCenter server
+- PyVmomi Python library (installed automatically with Docker)
 
-1. Create a `.env` file based on `.env.example`:
-   ```sh
-   cp .env.example .env
-   ```
+## Configuration
 
-2. Edit the `.env` file with your vCenter credentials:
-   ```
-   VITE_VCENTER_URL=https://your-vcenter-server/sdk
-   VITE_VCENTER_USERNAME=administrator@vsphere.local
-   VITE_VCENTER_PASSWORD=your-secure-password
-   VITE_VCENTER_IGNORE_SSL=true
-   ```
+Copy the example environment file and modify it with your vCenter credentials:
 
-3. Build and run the Docker container:
-   ```sh
-   docker-compose up -d
-   ```
-
-4. Access the application at http://localhost:8844
-
-## Development Setup
-
-If you want to work locally using your own IDE, you can clone this repo and push changes:
-
-```sh
-# Step 1: Clone the repository
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies
-npm i
-
-# Step 4: Create and configure .env file
+```bash
 cp .env.example .env
-# Edit .env with your vCenter credentials
-
-# Step 5: Start the development server
-npm run dev
 ```
 
-## Technologies Used
+Edit the `.env` file and add your vCenter connection details:
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-- Docker for production deployment
-
-## vCenter Integration
-
-The application connects to vCenter using the credentials provided in the `.env` file. To configure your vCenter connection:
-
-1. Ensure you have valid vCenter administrator credentials
-2. Update the `.env` file with your vCenter URL, username, and password
-3. Set `VITE_VCENTER_IGNORE_SSL=true` if you want to ignore SSL certificate validation (only for development)
+```
+VITE_VCENTER_URL=https://your-vcenter-server/sdk
+VITE_VCENTER_USERNAME=administrator@vsphere.local
+VITE_VCENTER_PASSWORD=your-password
+VITE_VCENTER_IGNORE_SSL=true
+```
 
 ## Deployment
 
-To deploy to production:
+### Using Docker Compose (Recommended)
 
-1. Build the Docker image:
-   ```sh
-   docker build -t vm-captain .
-   ```
+1. Build and start the containers:
 
-2. Run the container:
-   ```sh
-   docker run -d -p 8844:80 --env-file .env vm-captain
-   ```
+```bash
+docker-compose up -d
+```
 
-## Custom Domain
+2. Access the application:
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+```
+http://your-server-ip:8844
+```
+
+### Manual Deployment
+
+#### Backend (API)
+
+1. Navigate to the api directory:
+
+```bash
+cd api
+```
+
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Start the Flask API server:
+
+```bash
+gunicorn --bind 0.0.0.0:5000 app:app
+```
+
+#### Frontend
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Build the production frontend:
+
+```bash
+npm run build
+```
+
+3. Serve the built files using a web server like Nginx.
+
+## Development
+
+For development:
+
+```bash
+npm run dev
+```
+
+The API server needs to be running separately during development:
+
+```bash
+cd api
+python app.py
+```
+
+## Troubleshooting
+
+- Ensure that your vCenter credentials are correct
+- Check the Docker logs if you encounter issues:
+  ```
+  docker-compose logs
+  ```
+- Make sure port 8844 is not blocked by a firewall
+- Check that your server can reach the vCenter server

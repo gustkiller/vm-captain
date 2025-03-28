@@ -17,28 +17,40 @@ export interface VCenterCredentials {
 
 export class VCenterService {
   private credentials: VCenterCredentials;
+  private apiBaseUrl = '/api/vcenter'; // The endpoint of our backend API
   private sessionId: string | null = null;
-  // In a real implementation, this would be a proper SDK client
 
   constructor(credentials: VCenterCredentials) {
     this.credentials = credentials;
   }
 
   /**
-   * Connect to the vCenter API
+   * Connect to the vCenter API through our backend service
    */
   async connect(): Promise<void> {
     try {
-      // In a real implementation, this would use a vCenter SDK or REST API
       console.log(`Connecting to vCenter at ${this.credentials.url}`);
       
-      // TODO: Replace with actual vCenter SDK connection
-      // Example for when you implement with actual vCenter API:
-      // const client = new vSphereClient(this.credentials);
-      // this.sessionId = await client.login();
-      
-      // For now, we'll simulate a connection to avoid errors in development
-      this.sessionId = `session-${Date.now()}`;
+      const response = await fetch(`${this.apiBaseUrl}/connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: this.credentials.url,
+          username: this.credentials.username,
+          password: this.credentials.password,
+          ignore_ssl: this.credentials.ignoreSSL
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to connect to vCenter');
+      }
+
+      const data = await response.json();
+      this.sessionId = data.session_id;
       console.log('Connected to vCenter successfully');
     } catch (error) {
       console.error('Failed to connect to vCenter:', error);
@@ -47,7 +59,7 @@ export class VCenterService {
   }
 
   /**
-   * Get list of virtual machines
+   * Get list of virtual machines from vCenter
    */
   async getVirtualMachines(): Promise<VMType[]> {
     if (!this.sessionId) {
@@ -55,27 +67,20 @@ export class VCenterService {
     }
     
     try {
-      // TODO: Replace with actual vCenter SDK call
-      // Example for real implementation:
-      // const client = this.getClient();
-      // const vms = await client.getVirtualMachines();
-      // return vms.map(vm => this.mapVMToInternalFormat(vm));
-      
-      // For now, return placeholder VMs - this should be replaced with actual API data
-      return [
-        {
-          id: 'vm-1001',
-          name: 'Production Web Server',
-          description: 'Production web server',
-          status: VMStatus.RUNNING,
-          os: 'Ubuntu 22.04 LTS',
-          cpu: 4,
-          memory: 8,
-          cpuUsage: 35,
-          memoryUsage: 65,
-          diskUsage: 45
-        }
-      ];
+      const response = await fetch(`${this.apiBaseUrl}/vms`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.sessionId}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch virtual machines');
+      }
+
+      const vms = await response.json();
+      return vms.map(this.mapVMFromAPI);
     } catch (error) {
       console.error('Failed to fetch VMs:', error);
       throw new VCenterConnectionError(`Failed to fetch virtual machines: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -91,14 +96,23 @@ export class VCenterService {
     }
     
     try {
-      // TODO: Replace with actual vCenter SDK call
-      // Example:
-      // const client = this.getClient();
-      // const vmDetails = await client.getVirtualMachine(id);
-      // return this.mapVMToInternalFormat(vmDetails);
-      
-      const vms = await this.getVirtualMachines();
-      return vms.find(vm => vm.id === id) || null;
+      const response = await fetch(`${this.apiBaseUrl}/vms/${id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.sessionId}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch VM details');
+      }
+
+      const vm = await response.json();
+      return this.mapVMFromAPI(vm);
     } catch (error) {
       console.error(`Failed to fetch VM ${id}:`, error);
       throw new VCenterConnectionError(`Failed to fetch VM details: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -116,18 +130,19 @@ export class VCenterService {
     try {
       console.log(`Performing ${operation} operation on VM ${id}`);
       
-      // TODO: Replace with actual vCenter SDK call
-      // Example:
-      // const client = this.getClient();
-      // switch (operation) {
-      //   case 'start': return await client.powerOnVM(id);
-      //   case 'stop': return await client.powerOffVM(id);
-      //   case 'restart': return await client.restartVM(id);
-      // }
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const response = await fetch(`${this.apiBaseUrl}/vms/${id}/power/${operation}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.sessionId}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to ${operation} VM`);
+      }
+
       return true;
     } catch (error) {
       console.error(`Failed to ${operation} VM ${id}:`, error);
@@ -140,14 +155,56 @@ export class VCenterService {
    */
   async disconnect(): Promise<void> {
     if (this.sessionId) {
-      // TODO: Replace with actual vCenter SDK logout
-      // Example:
-      // const client = this.getClient();
-      // await client.logout();
-      
-      console.log('Disconnecting from vCenter');
-      this.sessionId = null;
+      try {
+        await fetch(`${this.apiBaseUrl}/disconnect`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.sessionId}`,
+          },
+        });
+        
+        console.log('Disconnecting from vCenter');
+      } catch (error) {
+        console.error('Error during disconnect:', error);
+      } finally {
+        this.sessionId = null;
+      }
     }
+  }
+
+  /**
+   * Map API VM format to our internal format
+   */
+  private mapVMFromAPI(vmData: any): VMType {
+    // Convert API response to our VMType
+    let status: VMStatus = VMStatus.STOPPED;
+    
+    switch(vmData.power_state?.toUpperCase()) {
+      case 'POWERED_ON':
+        status = VMStatus.RUNNING;
+        break;
+      case 'POWERED_OFF':
+        status = VMStatus.STOPPED;
+        break;
+      case 'SUSPENDED':
+        status = VMStatus.SUSPENDED;
+        break;
+      default:
+        status = vmData.power_state ? VMStatus.ERROR : VMStatus.STOPPED;
+    }
+
+    return {
+      id: vmData.id || vmData.vm || '',
+      name: vmData.name || 'Unknown VM',
+      description: vmData.description || '',
+      status: status,
+      os: vmData.guest_full_name || vmData.os || 'Unknown OS',
+      cpu: vmData.cpu_count || vmData.num_cpu || 0,
+      memory: vmData.memory_size_mb ? Math.round(vmData.memory_size_mb / 1024) : 0,
+      cpuUsage: vmData.cpu_usage || 0,
+      memoryUsage: vmData.memory_usage || 0,
+      diskUsage: vmData.disk_usage || 0
+    };
   }
 }
 

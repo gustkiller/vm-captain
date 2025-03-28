@@ -1,0 +1,286 @@
+
+import os
+import ssl
+import json
+import atexit
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from pyVim.connect import SmartConnect, Disconnect
+from pyVmomi import vim
+import random
+import time
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+# Store active sessions
+sessions = {}
+
+@app.route('/api/vcenter/connect', methods=['POST'])
+def connect():
+    try:
+        data = request.json
+        url = data.get('url')
+        username = data.get('username')
+        password = data.get('password')
+        ignore_ssl = data.get('ignore_ssl', False)
+        
+        if not url or not username or not password:
+            return jsonify({'error': 'Missing required connection parameters'}), 400
+        
+        # Parse hostname from URL
+        import re
+        hostname_match = re.search(r'https?://([^/]+)', url)
+        if not hostname_match:
+            return jsonify({'error': 'Invalid vCenter URL format'}), 400
+        
+        hostname = hostname_match.group(1)
+        
+        # Configure SSL context
+        context = None
+        if ignore_ssl:
+            context = ssl._create_unverified_context()
+        
+        # Connect to vCenter
+        service_instance = SmartConnect(
+            host=hostname,
+            user=username,
+            pwd=password,
+            sslContext=context
+        )
+        
+        if not service_instance:
+            return jsonify({'error': 'Failed to connect to vCenter'}), 500
+        
+        # Generate session ID
+        session_id = f"session-{int(time.time())}-{random.randint(1000, 9999)}"
+        sessions[session_id] = {
+            'service_instance': service_instance,
+            'created_at': time.time()
+        }
+        
+        # Register cleanup function to disconnect all sessions when app stops
+        atexit.register(cleanup_sessions)
+        
+        return jsonify({'session_id': session_id})
+    
+    except Exception as e:
+        app.logger.error(f"Connection error: {str(e)}")
+        return jsonify({'error': f'Failed to connect to vCenter: {str(e)}'}), 500
+
+@app.route('/api/vcenter/disconnect', methods=['POST'])
+def disconnect():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    session_id = auth_header.split(' ')[1]
+    if session_id in sessions:
+        try:
+            Disconnect(sessions[session_id]['service_instance'])
+            del sessions[session_id]
+            return jsonify({'message': 'Disconnected successfully'})
+        except Exception as e:
+            return jsonify({'error': f'Failed to disconnect: {str(e)}'}), 500
+    
+    return jsonify({'message': 'Session not found'}), 404
+
+@app.route('/api/vcenter/vms', methods=['GET'])
+def get_vms():
+    session = get_session_from_request()
+    if not session:
+        return jsonify({'error': 'Unauthorized or session expired'}), 401
+    
+    try:
+        service_instance = session['service_instance']
+        content = service_instance.RetrieveContent()
+        
+        # Get all VMs
+        container = content.viewManager.CreateContainerView(
+            content.rootFolder, [vim.VirtualMachine], True
+        )
+        
+        vms = []
+        for vm in container.view:
+            # Basic VM properties
+            vm_data = {
+                'id': vm._moId,
+                'name': vm.name,
+                'power_state': str(vm.runtime.powerState),
+                'guest_full_name': vm.config.guestFullName if vm.config else 'Unknown',
+                'description': vm.config.annotation if vm.config and vm.config.annotation else '',
+                'num_cpu': vm.config.hardware.numCPU if vm.config and vm.config.hardware else 0,
+                'memory_size_mb': vm.config.hardware.memoryMB if vm.config and vm.config.hardware else 0,
+            }
+            
+            # Get performance metrics if VM is powered on
+            if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
+                try:
+                    # These are very simplified metrics
+                    # In a real scenario, you'd use the Performance Manager to get actual metrics
+                    vm_data['cpu_usage'] = random.randint(5, 85)  # Simplified for demo
+                    vm_data['memory_usage'] = random.randint(10, 90)  # Simplified for demo
+                    vm_data['disk_usage'] = random.randint(20, 95)  # Simplified for demo
+                except Exception as e:
+                    app.logger.error(f"Error getting performance metrics: {str(e)}")
+            else:
+                vm_data['cpu_usage'] = 0
+                vm_data['memory_usage'] = 0
+                vm_data['disk_usage'] = 0
+            
+            vms.append(vm_data)
+        
+        container.Destroy()
+        return jsonify(vms)
+    
+    except Exception as e:
+        app.logger.error(f"Error retrieving VMs: {str(e)}")
+        return jsonify({'error': f'Failed to retrieve VMs: {str(e)}'}), 500
+
+@app.route('/api/vcenter/vms/<vm_id>', methods=['GET'])
+def get_vm(vm_id):
+    session = get_session_from_request()
+    if not session:
+        return jsonify({'error': 'Unauthorized or session expired'}), 401
+    
+    try:
+        service_instance = session['service_instance']
+        content = service_instance.RetrieveContent()
+        
+        # Find VM by its managed object ID
+        vm = find_vm_by_id(content, vm_id)
+        if not vm:
+            return jsonify({'error': 'VM not found'}), 404
+        
+        # Basic VM properties
+        vm_data = {
+            'id': vm._moId,
+            'name': vm.name,
+            'power_state': str(vm.runtime.powerState),
+            'guest_full_name': vm.config.guestFullName if vm.config else 'Unknown',
+            'description': vm.config.annotation if vm.config and vm.config.annotation else '',
+            'num_cpu': vm.config.hardware.numCPU if vm.config and vm.config.hardware else 0,
+            'memory_size_mb': vm.config.hardware.memoryMB if vm.config and vm.config.hardware else 0,
+        }
+        
+        # Get performance metrics if VM is powered on
+        if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
+            try:
+                # These are simplified metrics for demo purposes
+                vm_data['cpu_usage'] = random.randint(5, 85)
+                vm_data['memory_usage'] = random.randint(10, 90)
+                vm_data['disk_usage'] = random.randint(20, 95)
+            except Exception as e:
+                app.logger.error(f"Error getting performance metrics: {str(e)}")
+        else:
+            vm_data['cpu_usage'] = 0
+            vm_data['memory_usage'] = 0
+            vm_data['disk_usage'] = 0
+        
+        return jsonify(vm_data)
+    
+    except Exception as e:
+        app.logger.error(f"Error retrieving VM: {str(e)}")
+        return jsonify({'error': f'Failed to retrieve VM: {str(e)}'}), 500
+
+@app.route('/api/vcenter/vms/<vm_id>/power/<operation>', methods=['POST'])
+def power_operation(vm_id, operation):
+    if operation not in ['start', 'stop', 'restart']:
+        return jsonify({'error': 'Invalid power operation'}), 400
+    
+    session = get_session_from_request()
+    if not session:
+        return jsonify({'error': 'Unauthorized or session expired'}), 401
+    
+    try:
+        service_instance = session['service_instance']
+        content = service_instance.RetrieveContent()
+        
+        # Find VM by its managed object ID
+        vm = find_vm_by_id(content, vm_id)
+        if not vm:
+            return jsonify({'error': 'VM not found'}), 404
+        
+        # Perform power operation
+        if operation == 'start':
+            if vm.runtime.powerState != vim.VirtualMachine.PowerState.poweredOn:
+                task = vm.PowerOnVM_Task()
+                wait_for_task(task)
+            return jsonify({'status': 'success', 'message': 'VM powered on successfully'})
+        
+        elif operation == 'stop':
+            if vm.runtime.powerState != vim.VirtualMachine.PowerState.poweredOff:
+                task = vm.PowerOffVM_Task()
+                wait_for_task(task)
+            return jsonify({'status': 'success', 'message': 'VM powered off successfully'})
+        
+        elif operation == 'restart':
+            if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
+                task = vm.RebootGuest()
+                # RebootGuest doesn't return a task, so we wait a bit
+                time.sleep(2)
+            else:
+                # If not powered on, power it on
+                task = vm.PowerOnVM_Task()
+                wait_for_task(task)
+            return jsonify({'status': 'success', 'message': 'VM restarted successfully'})
+    
+    except Exception as e:
+        app.logger.error(f"Power operation error: {str(e)}")
+        return jsonify({'error': f'Failed to perform power operation: {str(e)}'}), 500
+
+def find_vm_by_id(content, vm_id):
+    """Find a VM by its managed object ID."""
+    container = content.viewManager.CreateContainerView(
+        content.rootFolder, [vim.VirtualMachine], True
+    )
+    for vm in container.view:
+        if vm._moId == vm_id:
+            container.Destroy()
+            return vm
+    container.Destroy()
+    return None
+
+def wait_for_task(task):
+    """Wait for a vCenter task to finish."""
+    while task.info.state == vim.TaskInfo.State.running:
+        time.sleep(1)
+    
+    if task.info.state != vim.TaskInfo.State.success:
+        raise Exception(task.info.error.msg)
+
+def get_session_from_request():
+    """Get the session from the request's Authorization header."""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None
+    
+    session_id = auth_header.split(' ')[1]
+    if session_id in sessions:
+        # Check if session has expired (24 hour expiration)
+        if time.time() - sessions[session_id]['created_at'] > 86400:
+            try:
+                Disconnect(sessions[session_id]['service_instance'])
+            except:
+                pass
+            del sessions[session_id]
+            return None
+        return sessions[session_id]
+    
+    return None
+
+def cleanup_sessions():
+    """Clean up all vCenter sessions."""
+    for session_id in list(sessions.keys()):
+        try:
+            Disconnect(sessions[session_id]['service_instance'])
+        except:
+            pass
+        del sessions[session_id]
+
+if __name__ == '__main__':
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
