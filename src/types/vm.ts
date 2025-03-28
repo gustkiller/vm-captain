@@ -22,7 +22,7 @@ export enum UserRole {
 export interface UserType {
   id: string;
   username: string;
-  password?: string; // Made optional with ?
+  password?: string; // Keep this optional for security reasons
   role: UserRole;
   assignedVMs?: string[]; // Array of VM IDs assigned to this user
 }

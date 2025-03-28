@@ -1,3 +1,4 @@
+
 import { UserType, UserRole, VMType } from '@/types/vm';
 import { toast } from 'sonner';
 
@@ -71,6 +72,7 @@ class UserService {
       this.currentUser = {
         id: 'admin-1',
         username: 'admin',
+        password: password, // Include password to satisfy the interface
         role: UserRole.ADMIN,
         assignedVMs: []
       };
@@ -80,6 +82,7 @@ class UserService {
       this.currentUser = {
         id: 'user-1',
         username: 'user',
+        password: password, // Include password to satisfy the interface
         role: UserRole.USER,
         assignedVMs: []
       };
@@ -303,6 +306,7 @@ class UserService {
     const newUser: UserType = {
       id: `user-${Date.now()}`,
       username,
+      password, // Include password to satisfy the interface
       role,
       assignedVMs: []
     };
@@ -364,12 +368,14 @@ class UserService {
       {
         id: 'admin-1',
         username: 'admin',
+        password: '123456', // Include password to satisfy the interface
         role: UserRole.ADMIN,
         assignedVMs: []
       },
       {
         id: 'user-1',
         username: 'user',
+        password: '123456', // Include password to satisfy the interface
         role: UserRole.USER,
         assignedVMs: []
       }
