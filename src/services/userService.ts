@@ -1,4 +1,3 @@
-
 import { UserType, UserRole, VMType } from '@/types/vm';
 
 // Mock user data for demonstration
@@ -61,6 +60,9 @@ class UserService {
   }
 
   login(username: string, password: string): boolean {
+    console.log(`Attempting login with: ${username}/${password}`);
+    console.log('Available users:', this.users);
+    
     const user = this.users.find(u => u.username === username && u.password === password);
     if (user) {
       this.currentUser = user;
@@ -220,6 +222,13 @@ class UserService {
     }
     
     return false;
+  }
+
+  resetToDefaults(): void {
+    this.users = [...mockUsers];
+    this.currentUser = null;
+    this.saveState();
+    console.log('User database reset to defaults');
   }
 }
 
