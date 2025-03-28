@@ -29,7 +29,7 @@ This project includes a Docker configuration for easy deployment:
    docker-compose up -d
    ```
 
-4. Access the application at http://localhost:80
+4. Access the application at http://localhost:8844
 
 ## Development Setup
 
@@ -83,7 +83,7 @@ To deploy to production:
 
 2. Run the container:
    ```sh
-   docker run -d -p 80:80 --env-file .env vm-captain
+   docker run -d -p 8844:80 --env-file .env vm-captain
    ```
 
 ## Custom Domain
