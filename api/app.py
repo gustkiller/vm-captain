@@ -20,7 +20,7 @@ CORS(app)
 # Store active sessions
 sessions = {}
 
-@app.route('/api/vcenter/connect', methods=['POST'])
+@app.route('/vcenter/connect', methods=['POST'])
 def connect():
     try:
         data = request.json
@@ -72,7 +72,7 @@ def connect():
         app.logger.error(f"Connection error: {str(e)}")
         return jsonify({'error': f'Failed to connect to vCenter: {str(e)}'}), 500
 
-@app.route('/api/vcenter/disconnect', methods=['POST'])
+@app.route('/vcenter/disconnect', methods=['POST'])
 def disconnect():
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
@@ -89,7 +89,7 @@ def disconnect():
     
     return jsonify({'message': 'Session not found'}), 404
 
-@app.route('/api/vcenter/vms', methods=['GET'])
+@app.route('/vcenter/vms', methods=['GET'])
 def get_vms():
     session = get_session_from_request()
     if not session:
@@ -141,7 +141,7 @@ def get_vms():
         app.logger.error(f"Error retrieving VMs: {str(e)}")
         return jsonify({'error': f'Failed to retrieve VMs: {str(e)}'}), 500
 
-@app.route('/api/vcenter/vms/<vm_id>', methods=['GET'])
+@app.route('/vcenter/vms/<vm_id>', methods=['GET'])
 def get_vm(vm_id):
     session = get_session_from_request()
     if not session:
@@ -187,7 +187,7 @@ def get_vm(vm_id):
         app.logger.error(f"Error retrieving VM: {str(e)}")
         return jsonify({'error': f'Failed to retrieve VM: {str(e)}'}), 500
 
-@app.route('/api/vcenter/vms/<vm_id>/power/<operation>', methods=['POST'])
+@app.route('/vcenter/vms/<vm_id>/power/<operation>', methods=['POST'])
 def power_operation(vm_id, operation):
     if operation not in ['start', 'stop', 'restart']:
         return jsonify({'error': 'Invalid power operation'}), 400
@@ -281,6 +281,11 @@ def cleanup_sessions():
         except:
             pass
         del sessions[session_id]
+
+# Debug endpoint to check if API is working
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'ok', 'message': 'API is running'}), 200
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

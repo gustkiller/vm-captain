@@ -17,7 +17,7 @@ export interface VCenterCredentials {
 
 export class VCenterService {
   private credentials: VCenterCredentials;
-  private apiBaseUrl = '/api/vcenter'; // The endpoint of our backend API
+  private apiBaseUrl = '/api'; // API endpoint via the nginx proxy
   private sessionId: string | null = null;
 
   constructor(credentials: VCenterCredentials) {
@@ -31,7 +31,7 @@ export class VCenterService {
     try {
       console.log(`Connecting to vCenter at ${this.credentials.url}`);
       
-      const response = await fetch(`${this.apiBaseUrl}/connect`, {
+      const response = await fetch(`${this.apiBaseUrl}/vcenter/connect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,8 +45,15 @@ export class VCenterService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to connect to vCenter');
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || 'Unknown error';
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${errorText || 'No error details available'}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -67,7 +74,7 @@ export class VCenterService {
     }
     
     try {
-      const response = await fetch(`${this.apiBaseUrl}/vms`, {
+      const response = await fetch(`${this.apiBaseUrl}/vcenter/vms`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.sessionId}`,
@@ -75,8 +82,15 @@ export class VCenterService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch virtual machines');
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || 'Unknown error';
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${errorText || 'No error details available'}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const vms = await response.json();
@@ -96,7 +110,7 @@ export class VCenterService {
     }
     
     try {
-      const response = await fetch(`${this.apiBaseUrl}/vms/${id}`, {
+      const response = await fetch(`${this.apiBaseUrl}/vcenter/vms/${id}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.sessionId}`,
@@ -107,8 +121,15 @@ export class VCenterService {
         if (response.status === 404) {
           return null;
         }
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch VM details');
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || 'Unknown error';
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${errorText || 'No error details available'}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const vm = await response.json();
@@ -130,7 +151,7 @@ export class VCenterService {
     try {
       console.log(`Performing ${operation} operation on VM ${id}`);
       
-      const response = await fetch(`${this.apiBaseUrl}/vms/${id}/power/${operation}`, {
+      const response = await fetch(`${this.apiBaseUrl}/vcenter/vms/${id}/power/${operation}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.sessionId}`,
@@ -139,8 +160,15 @@ export class VCenterService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Failed to ${operation} VM`);
+        const errorText = await response.text();
+        let errorMessage;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || 'Unknown error';
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${errorText || 'No error details available'}`;
+        }
+        throw new Error(errorMessage);
       }
 
       return true;
@@ -156,7 +184,7 @@ export class VCenterService {
   async disconnect(): Promise<void> {
     if (this.sessionId) {
       try {
-        await fetch(`${this.apiBaseUrl}/disconnect`, {
+        await fetch(`${this.apiBaseUrl}/vcenter/disconnect`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.sessionId}`,
@@ -199,7 +227,7 @@ export class VCenterService {
       description: vmData.description || '',
       status: status,
       os: vmData.guest_full_name || vmData.os || 'Unknown OS',
-      cpu: vmData.cpu_count || vmData.num_cpu || 0,
+      cpu: vmData.num_cpu || vmData.cpu_count || 0,
       memory: vmData.memory_size_mb ? Math.round(vmData.memory_size_mb / 1024) : 0,
       cpuUsage: vmData.cpu_usage || 0,
       memoryUsage: vmData.memory_usage || 0,

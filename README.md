@@ -40,7 +40,7 @@ VITE_VCENTER_IGNORE_SSL=true
 1. Build and start the containers:
 
 ```bash
-docker-compose up -d
+docker-compose up -d --build
 ```
 
 2. Access the application:
@@ -87,27 +87,22 @@ npm run build
 
 3. Serve the built files using a web server like Nginx.
 
-## Development
-
-For development:
-
-```bash
-npm run dev
-```
-
-The API server needs to be running separately during development:
-
-```bash
-cd api
-python app.py
-```
-
 ## Troubleshooting
 
-- Ensure that your vCenter credentials are correct
+- Ensure that your vCenter credentials are correct in the `.env` file
 - Check the Docker logs if you encounter issues:
   ```
   docker-compose logs
   ```
 - Make sure port 8844 is not blocked by a firewall
 - Check that your server can reach the vCenter server
+- Verify API connectivity by accessing `http://your-server-ip:5000/health`
+
+## Architecture
+
+The application consists of two main components:
+
+1. **Frontend**: React application that provides the user interface
+2. **Backend API**: Flask application that communicates with vCenter using PyVmomi
+
+All API calls to vCenter are proxied through the backend for security reasons.
