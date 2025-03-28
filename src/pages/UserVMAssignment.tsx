@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { userService } from '@/services/userService';
-import { vCenterService } from '@/services/vCenterService';
-import { UserType, VMType } from '@/types/vm';
+import { createVCenterService } from '@/services/vCenterService';
+import { UserType, VMType, VMStatus } from '@/types/vm';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -25,6 +25,23 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { VMStatusBadge } from '@/components/vm/VMStatusBadge';
+import { configService } from '@/services/configService';
+
+// Helper function to convert VMStatus enum to string format for VMStatusBadge
+const mapVMStatus = (status: VMStatus): 'running' | 'stopped' | 'suspended' | 'error' => {
+  switch (status) {
+    case VMStatus.RUNNING:
+      return 'running';
+    case VMStatus.STOPPED:
+      return 'stopped';
+    case VMStatus.SUSPENDED:
+      return 'suspended';
+    case VMStatus.ERROR:
+    case VMStatus.MAINTENANCE:
+    default:
+      return 'error';
+  }
+};
 
 const UserVMAssignment = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,7 +73,10 @@ const UserVMAssignment = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const vms = await vCenterService.getVirtualMachines();
+        // Create a new instance of VCenterService
+        const vCenterConfig = configService.getVCenterConfig();
+        const vCenterServiceInstance = createVCenterService(vCenterConfig);
+        const vms = await vCenterServiceInstance.getVirtualMachines();
         setAllVMs(vms);
         
         if (foundUser.assignedVMs) {
@@ -178,7 +198,7 @@ const UserVMAssignment = () => {
                         </TableCell>
                         <TableCell className="font-medium">{vm.name}</TableCell>
                         <TableCell>
-                          <VMStatusBadge status={vm.status} />
+                          <VMStatusBadge status={mapVMStatus(vm.status)} />
                         </TableCell>
                         <TableCell>{vm.os}</TableCell>
                         <TableCell>
