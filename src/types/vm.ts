@@ -14,6 +14,18 @@ export interface DiskType {
   thin_provisioned: boolean;
 }
 
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER'
+}
+
+export interface UserType {
+  id: string;
+  username: string;
+  role: UserRole;
+  assignedVMs?: string[]; // Array of VM IDs assigned to this user
+}
+
 export interface VMType {
   id: string;
   name: string;
@@ -27,4 +39,5 @@ export interface VMType {
   diskUsage: number;
   ipAddress?: string;
   disks?: DiskType[];
+  assignedUsers?: string[]; // Array of user IDs who can access this VM
 }
