@@ -2,7 +2,7 @@
 import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { VMCard } from '@/components/vm/VMCard';
-import { mockVMData } from '@/services/mockData';
+import { mockVMs } from '@/services/mockData';
 
 const Index = () => {
   return (
@@ -16,8 +16,20 @@ const Index = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockVMData.map(vm => (
-            <VMCard key={vm.id} vm={vm} />
+          {mockVMs.map(vm => (
+            <VMCard 
+              key={vm.id} 
+              id={vm.id}
+              name={vm.name}
+              description={vm.description}
+              status={vm.status}
+              os={vm.os}
+              cpu={vm.cpu}
+              memory={vm.memory}
+              cpuUsage={vm.cpuUsage}
+              memoryUsage={vm.memoryUsage}
+              diskUsage={vm.diskUsage}
+            />
           ))}
         </div>
       </div>
