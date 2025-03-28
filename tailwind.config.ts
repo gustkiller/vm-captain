@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,17 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				vm: {
+					running: '#22c55e',      // Green for running VMs
+					stopped: '#ef4444',      // Red for stopped VMs
+					suspended: '#eab308',    // Yellow for suspended VMs
+					warning: '#f97316',      // Orange for warning states
+					info: '#3b82f6',         // Blue for info
+					cpu: '#3b82f6',          // Blue for CPU metrics
+					memory: '#8b5cf6',       // Purple for memory metrics
+					disk: '#10b981',         // Green for disk metrics
+					network: '#f59e0b',       // Amber for network metrics
 				}
 			},
 			borderRadius: {
@@ -84,11 +96,16 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-slow': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-slow': 'pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
 			}
 		}
 	},
