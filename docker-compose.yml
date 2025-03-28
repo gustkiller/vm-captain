@@ -16,6 +16,8 @@ services:
       - ./.env:/usr/share/nginx/html/.env
     depends_on:
       - backend
+    networks:
+      - vm-captain-network
 
   backend:
     build:
@@ -29,3 +31,12 @@ services:
       - .env
     volumes:
       - ./.env:/app/.env
+    networks:
+      - vm-captain-network
+
+networks:
+  vm-captain-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
