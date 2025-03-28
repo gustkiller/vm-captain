@@ -5,7 +5,7 @@ import { userService } from '@/services/userService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Database, Lock, User, RefreshCw } from 'lucide-react';
+import { Database, Lock, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/user/ThemeToggle';
 
@@ -68,14 +68,6 @@ const Login = () => {
     }, 800);
   };
 
-  const resetUserDatabase = () => {
-    userService.resetToDefaults();
-    toast({
-      title: "Database Reset",
-      description: "User database has been reset to defaults",
-    });
-  };
-
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="absolute top-4 right-4">
@@ -122,12 +114,9 @@ const Login = () => {
                 />
                 <Lock className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
               </div>
-              <p className="text-xs text-muted-foreground px-1">
-                Default credentials: "admin" / "123456" (administrator) or "user" / "123456" (standard user)
-              </p>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter>
             <Button 
               type="submit" 
               className="w-full h-12"
@@ -140,16 +129,6 @@ const Login = () => {
               ) : (
                 "Login"
               )}
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1 self-center"
-              onClick={resetUserDatabase}
-            >
-              <RefreshCw className="h-3 w-3" />
-              <span>Reset User Database</span>
             </Button>
           </CardFooter>
         </form>

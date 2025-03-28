@@ -1,72 +1,44 @@
-import { UserType, UserRole, VMType } from '@/types/vm';
 
-// Mock user data for demonstration
-const mockUsers: UserType[] = [
-  {
-    id: 'admin-1',
-    username: 'admin',
-    password: '123456',
-    role: UserRole.ADMIN,
-    assignedVMs: []
-  },
-  {
-    id: 'user-1',
-    username: 'user',
-    password: '123456',
-    role: UserRole.USER,
-    assignedVMs: []
-  }
-];
+import { UserType, UserRole, VMType } from '@/types/vm';
+import { dbService } from './dbService';
 
 class UserService {
   private currentUser: UserType | null = null;
-  private users: UserType[] = [...mockUsers];
 
   constructor() {
-    // Load from localStorage on initialization
-    this.loadState();
+    // Check for saved user session
+    this.loadSession();
   }
 
-  private loadState() {
+  private loadSession() {
     try {
       const storedCurrentUser = localStorage.getItem('currentUser');
-      const storedUsers = localStorage.getItem('users');
-      
       if (storedCurrentUser) {
         this.currentUser = JSON.parse(storedCurrentUser);
       }
-      
-      if (storedUsers) {
-        this.users = JSON.parse(storedUsers);
-      } else {
-        // Initialize with default users if no stored users exist
-        this.users = [...mockUsers];
-        localStorage.setItem('users', JSON.stringify(this.users));
-      }
     } catch (error) {
-      console.error('Error loading state from localStorage:', error);
-      // Fallback to default users
-      this.users = [...mockUsers];
+      console.error('Error loading user session:', error);
+      this.currentUser = null;
     }
   }
 
-  private saveState() {
+  private saveSession() {
     try {
-      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-      localStorage.setItem('users', JSON.stringify(this.users));
+      if (this.currentUser) {
+        localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+      } else {
+        localStorage.removeItem('currentUser');
+      }
     } catch (error) {
-      console.error('Error saving state to localStorage:', error);
+      console.error('Error saving user session:', error);
     }
   }
 
   login(username: string, password: string): boolean {
-    console.log(`Attempting login with: ${username}/${password}`);
-    console.log('Available users:', this.users);
-    
-    const user = this.users.find(u => u.username === username && u.password === password);
+    const user = dbService.getUserByCredentials(username, password);
     if (user) {
       this.currentUser = user;
-      this.saveState();
+      this.saveSession();
       return true;
     }
     return false;
@@ -78,30 +50,25 @@ class UserService {
     }
     
     // Verify current password
-    const user = this.users.find(u => 
-      u.id === this.currentUser?.id && 
-      u.password === currentPassword
-    );
+    const user = dbService.getUserByCredentials(this.currentUser.username, currentPassword);
     
     if (!user) {
       return false;
     }
     
     // Update password
-    const userIndex = this.users.findIndex(u => u.id === user.id);
-    if (userIndex !== -1) {
-      this.users[userIndex].password = newPassword;
-      this.currentUser.password = newPassword;
-      this.saveState();
-      return true;
+    const success = dbService.updateUserPassword(user.id, newPassword);
+    if (success) {
+      // Update current user
+      this.currentUser = dbService.getUserById(user.id);
+      this.saveSession();
     }
-    
-    return false;
+    return success;
   }
 
   logout(): void {
     this.currentUser = null;
-    this.saveState();
+    localStorage.removeItem('currentUser');
   }
 
   getCurrentUser(): UserType | null {
@@ -116,53 +83,28 @@ class UserService {
     if (!this.isAdmin()) {
       return [];
     }
-    return this.users;
+    return dbService.getAllUsers();
   }
 
   getUserById(id: string): UserType | null {
     if (!this.isAdmin()) {
       return null;
     }
-    return this.users.find(u => u.id === id) || null;
+    return dbService.getUserById(id);
   }
 
   assignVMToUser(userId: string, vmId: string): boolean {
     if (!this.isAdmin()) {
       return false;
     }
-
-    const userIndex = this.users.findIndex(u => u.id === userId);
-    if (userIndex === -1) {
-      return false;
-    }
-
-    const user = this.users[userIndex];
-    if (!user.assignedVMs) {
-      user.assignedVMs = [];
-    }
-
-    if (!user.assignedVMs.includes(vmId)) {
-      user.assignedVMs.push(vmId);
-      this.users[userIndex] = user;
-      this.saveState();
-    }
-
-    return true;
+    return dbService.assignVMToUser(userId, vmId);
   }
 
   removeVMFromUser(userId: string, vmId: string): boolean {
     if (!this.isAdmin()) {
       return false;
     }
-
-    const userIndex = this.users.findIndex(u => u.id === userId);
-    if (userIndex === -1 || !this.users[userIndex].assignedVMs) {
-      return false;
-    }
-
-    this.users[userIndex].assignedVMs = this.users[userIndex].assignedVMs?.filter(id => id !== vmId);
-    this.saveState();
-    return true;
+    return dbService.removeVMFromUser(userId, vmId);
   }
 
   getAssignedVMs(vms: VMType[]): VMType[] {
@@ -186,10 +128,6 @@ class UserService {
       return null;
     }
 
-    if (this.users.some(u => u.username === username)) {
-      return null; // User already exists
-    }
-
     const newUser: UserType = {
       id: `user-${Date.now()}`,
       username,
@@ -198,9 +136,8 @@ class UserService {
       assignedVMs: []
     };
 
-    this.users.push(newUser);
-    this.saveState();
-    return newUser;
+    const success = dbService.addUser(newUser);
+    return success ? newUser : null;
   }
 
   removeUser(userId: string): boolean {
@@ -212,23 +149,8 @@ class UserService {
     if (this.currentUser?.id === userId) {
       return false;
     }
-
-    const initialLength = this.users.length;
-    this.users = this.users.filter(u => u.id !== userId);
     
-    if (this.users.length < initialLength) {
-      this.saveState();
-      return true;
-    }
-    
-    return false;
-  }
-
-  resetToDefaults(): void {
-    this.users = [...mockUsers];
-    this.currentUser = null;
-    this.saveState();
-    console.log('User database reset to defaults');
+    return dbService.deleteUser(userId);
   }
 }
 
