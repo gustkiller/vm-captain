@@ -1,8 +1,7 @@
 
 import { UserRole, UserType } from '@/types/vm';
 
-// Simulate SQLite database using in-memory storage
-// In a real application, this would connect to a real SQLite database
+// Simulate database using in-memory storage with sessionStorage persistence
 class DatabaseService {
   private users: UserType[] = [
     {
@@ -122,27 +121,6 @@ class DatabaseService {
     
     user.assignedVMs = user.assignedVMs.filter(id => id !== vmId);
     return this.updateUser(user);
-  }
-  
-  // For admin use only - resets database to default state
-  resetDatabase() {
-    this.users = [
-      {
-        id: 'admin-1',
-        username: 'admin',
-        password: '123456',
-        role: UserRole.ADMIN,
-        assignedVMs: []
-      },
-      {
-        id: 'user-1',
-        username: 'user',
-        password: '123456',
-        role: UserRole.USER,
-        assignedVMs: []
-      }
-    ];
-    this.saveDatabase();
   }
 }
 
