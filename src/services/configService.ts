@@ -25,4 +25,26 @@ if (!config.vCenter.url || !config.vCenter.username || !config.vCenter.password)
   console.error('Missing vCenter configuration. Please check your environment variables.');
 }
 
+// Create a service object to access configuration
+class ConfigService {
+  private config: ConfigType = config;
+  
+  getVCenterConfig() {
+    return {
+      url: this.config.vCenter.url,
+      username: this.config.vCenter.username,
+      password: this.config.vCenter.password,
+      ignoreSSL: this.config.vCenter.ignoreSSL
+    };
+  }
+  
+  getEnvironment() {
+    return this.config.environment;
+  }
+}
+
+// Export the service as a singleton
+export const configService = new ConfigService();
+
+// Also export default config for backward compatibility
 export default config;
