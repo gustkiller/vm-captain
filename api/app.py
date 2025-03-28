@@ -1,4 +1,3 @@
-
 import os
 import ssl
 import json
@@ -145,6 +144,10 @@ def get_vms():
                 'guest_full_name': vm.config.guestFullName if vm.config else 'Unknown',
             }
             
+            # Add IP address if available
+            if vm.guest and vm.guest.ipAddress:
+                vm_data['ip_address'] = vm.guest.ipAddress
+            
             # Get performance metrics if VM is powered on
             if vm.runtime.powerState == vim.VirtualMachine.PowerState.poweredOn:
                 vm_data['cpu_usage'] = random.randint(5, 85)  # Simplified for demo
@@ -189,6 +192,10 @@ def get_vm(vm_id):
             'num_cpu': vm.config.hardware.numCPU if vm.config and vm.config.hardware else 0,
             'memory_size_mb': vm.config.hardware.memoryMB if vm.config and vm.config.hardware else 0,
         }
+
+        # Add IP address if available
+        if vm.guest and vm.guest.ipAddress:
+            vm_data['ip_address'] = vm.guest.ipAddress
         
         # Add disk information
         disks = []

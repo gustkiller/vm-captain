@@ -1,4 +1,3 @@
-
 import { VMType, VMStatus } from '@/types/vm';
 import { SnapshotType } from '@/types/snapshot';
 
@@ -324,6 +323,7 @@ export class VCenterService {
       cpuUsage: vmData.cpu_usage || 0,
       memoryUsage: vmData.memory_usage || 0,
       diskUsage: vmData.disk_usage || 0,
+      ipAddress: vmData.ip_address || '',
       disks: vmData.disks || []
     };
   }

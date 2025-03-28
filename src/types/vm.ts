@@ -25,5 +25,6 @@ export interface VMType {
   cpuUsage: number;
   memoryUsage: number;
   diskUsage: number;
+  ipAddress?: string;
   disks?: DiskType[];
 }

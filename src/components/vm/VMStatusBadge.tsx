@@ -29,9 +29,12 @@ const statusConfig = {
 export function VMStatusBadge({ status }: VMStatusBadgeProps) {
   const config = statusConfig[status];
   
+  // Only apply pulsing animation to running status
+  const animationClass = status === 'running' ? 'animate-pulse-slow' : '';
+  
   return (
     <Badge 
-      className={`${config.className} animate-pulse-slow`}
+      className={`${config.className} ${animationClass}`}
       variant="outline"
     >
       {config.label}

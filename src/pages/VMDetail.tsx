@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
-import { VMType, VMStatus } from '@/types/vm'; // Add VMStatus import here
+import { VMType, VMStatus } from '@/types/vm';
 import { SnapshotType } from '@/types/snapshot';
 import { VCenterService, createVCenterService } from '@/services/vCenterService';
 import config from '@/services/configService';
@@ -32,7 +31,6 @@ import { Loader2 } from 'lucide-react';
 import { VMStatusBadge } from '@/components/vm/VMStatusBadge';
 import { useForm } from 'react-hook-form';
 
-// Helper function to convert VMStatus enum to the string format expected by VMStatusBadge
 const mapStatusForBadge = (status: VMStatus): 'running' | 'stopped' | 'suspended' | 'error' => {
   switch (status) {
     case VMStatus.RUNNING:
@@ -85,7 +83,6 @@ const VMDetail = () => {
         if (fetchedVM) {
           setVM(fetchedVM);
           
-          // Fetch snapshots
           setSnapshotLoading(true);
           try {
             const snapshots = await vcenterService.getSnapshots(id);
@@ -144,7 +141,6 @@ const VMDetail = () => {
         description: `The VM "${vm.name}" has been ${action}ed successfully.`,
       });
       
-      // Refresh VM data
       const updatedVM = await vcenterService.getVirtualMachine(id);
       if (updatedVM) {
         setVM(updatedVM);
@@ -196,7 +192,6 @@ const VMDetail = () => {
         description: `Snapshot "${snapshotForm.name}" has been created successfully.`,
       });
       
-      // Reset form
       setSnapshotForm({
         name: '',
         description: '',
@@ -204,7 +199,6 @@ const VMDetail = () => {
         quiesce: false
       });
       
-      // Refresh snapshots
       const refreshedSnapshots = await vcenterService.getSnapshots(id);
       setSnapshots(refreshedSnapshots);
     } catch (err) {
@@ -286,6 +280,11 @@ const VMDetail = () => {
               <div>
                 <CardTitle>{vm.name}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">{vm.os}</p>
+                {vm.ipAddress && (
+                  <p className="text-xs font-mono bg-muted px-2 py-1 rounded mt-1 inline-block">
+                    IP: {vm.ipAddress}
+                  </p>
+                )}
               </div>
               <VMStatusBadge status={mapStatusForBadge(vm.status)} />
             </CardHeader>
