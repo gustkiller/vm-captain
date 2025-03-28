@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   Monitor, 
   Database, 
@@ -8,7 +8,8 @@ import {
   Settings, 
   Bell, 
   LogOut, 
-  Search
+  Search,
+  Shield
 } from 'lucide-react';
 
 import { 
@@ -26,15 +27,31 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-const mainNavItems = [
-  { title: "Dashboard", icon: Monitor, path: "/" },
-  { title: "Virtual Machines", icon: Database, path: "/virtual-machines" },
-  { title: "Users", icon: Users, path: "/users" },
-  { title: "Settings", icon: Settings, path: "/settings" },
-];
+import { userService } from '@/services/userService';
 
 const AppSidebar: React.FC = () => {
+  const navigate = useNavigate();
+  const currentUser = userService.getCurrentUser();
+  const isAdmin = userService.isAdmin();
+
+  const handleLogout = () => {
+    userService.logout();
+    navigate('/login');
+  };
+
+  const mainNavItems = [
+    { title: "Dashboard", icon: Monitor, path: "/" },
+    { title: "Virtual Machines", icon: Database, path: "/virtual-machines" },
+  ];
+
+  // Add admin-only navigation items
+  if (isAdmin) {
+    mainNavItems.push(
+      { title: "Users", icon: Users, path: "/users" },
+      { title: "Settings", icon: Settings, path: "/settings" }
+    );
+  }
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
@@ -57,6 +74,21 @@ const AppSidebar: React.FC = () => {
             />
           </div>
         </div>
+        
+        {currentUser && (
+          <div className="px-4 py-2 mb-2">
+            <div className="flex items-center p-2 rounded-md bg-secondary/50">
+              {isAdmin ? (
+                <Shield className="h-4 w-4 mr-2 text-blue-500" />
+              ) : (
+                <Users className="h-4 w-4 mr-2 text-muted-foreground" />
+              )}
+              <span className="text-sm font-medium">
+                {currentUser.username} ({isAdmin ? 'Admin' : 'User'})
+              </span>
+            </div>
+          </div>
+        )}
         
         <SidebarGroup>
           <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
@@ -87,7 +119,7 @@ const AppSidebar: React.FC = () => {
           <Button variant="ghost" size="icon">
             <Bell className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
           </Button>
         </div>

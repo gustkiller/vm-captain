@@ -24,11 +24,6 @@ class UserService {
   constructor() {
     // Load from localStorage on initialization
     this.loadState();
-    
-    // Set admin as default user if no current user
-    if (!this.currentUser) {
-      this.login('admin');
-    }
   }
 
   private loadState() {
@@ -42,9 +37,15 @@ class UserService {
       
       if (storedUsers) {
         this.users = JSON.parse(storedUsers);
+      } else {
+        // Initialize with default users if no stored users exist
+        this.users = [...mockUsers];
+        localStorage.setItem('users', JSON.stringify(this.users));
       }
     } catch (error) {
       console.error('Error loading state from localStorage:', error);
+      // Fallback to default users
+      this.users = [...mockUsers];
     }
   }
 
@@ -85,6 +86,13 @@ class UserService {
       return [];
     }
     return this.users;
+  }
+
+  getUserById(id: string): UserType | null {
+    if (!this.isAdmin()) {
+      return null;
+    }
+    return this.users.find(u => u.id === id) || null;
   }
 
   assignVMToUser(userId: string, vmId: string): boolean {
@@ -161,6 +169,27 @@ class UserService {
     this.users.push(newUser);
     this.saveState();
     return newUser;
+  }
+
+  removeUser(userId: string): boolean {
+    if (!this.isAdmin()) {
+      return false;
+    }
+
+    // Prevent removal of current user
+    if (this.currentUser?.id === userId) {
+      return false;
+    }
+
+    const initialLength = this.users.length;
+    this.users = this.users.filter(u => u.id !== userId);
+    
+    if (this.users.length < initialLength) {
+      this.saveState();
+      return true;
+    }
+    
+    return false;
   }
 }
 
