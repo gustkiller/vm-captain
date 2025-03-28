@@ -10,12 +10,10 @@ services:
       - "8844:80"
     environment:
       - NODE_ENV=production
-    depends_on:
-      - backend
     volumes:
       - ./.env:/usr/share/nginx/html/.env
-    networks:
-      - app-network
+    depends_on:
+      - backend
 
   backend:
     build:
@@ -27,9 +25,3 @@ services:
       - FLASK_ENV=production
     volumes:
       - ./.env:/app/.env
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
