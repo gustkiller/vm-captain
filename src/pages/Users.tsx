@@ -47,13 +47,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { AlertCircle, Plus, Shield, Trash2, User, UserPlus } from 'lucide-react';
+import { AlertCircle, Plus, Shield, Trash2, User, UserPlus, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
 const Users = () => {
   const [users, setUsers] = useState<UserType[]>(userService.getAllUsers());
   const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>(UserRole.USER);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -69,7 +70,16 @@ const Users = () => {
       return;
     }
     
-    const newUser = userService.addUser(newUsername, newUserRole);
+    if (!newPassword.trim() || newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const newUser = userService.addUser(newUsername, newPassword, newUserRole);
     
     if (newUser) {
       toast({
@@ -78,6 +88,7 @@ const Users = () => {
       });
       setUsers(userService.getAllUsers());
       setNewUsername('');
+      setNewPassword('');
       setNewUserRole(UserRole.USER);
       setIsAddDialogOpen(false);
     } else {
@@ -141,12 +152,31 @@ const Users = () => {
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
                   <label htmlFor="username" className="text-sm font-medium">Username</label>
-                  <Input
-                    id="username"
-                    placeholder="Enter username"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="username"
+                      placeholder="Enter username"
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      className="pl-10"
+                    />
+                    <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="password" className="text-sm font-medium">Password</label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="pl-10"
+                    />
+                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Password must be at least 6 characters long</p>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="role" className="text-sm font-medium">Role</label>

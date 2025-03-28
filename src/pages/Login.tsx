@@ -5,12 +5,13 @@ import { userService } from '@/services/userService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Database, Lock } from 'lucide-react';
+import { Database, Lock, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/user/ThemeToggle';
 
 const Login = () => {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,11 +36,20 @@ const Login = () => {
       return;
     }
 
+    if (!password.trim()) {
+      toast({
+        title: "Login Error",
+        description: "Please enter a password",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     // Simulate API call delay
     setTimeout(() => {
-      const success = userService.login(username);
+      const success = userService.login(username, password);
       
       if (success) {
         toast({
@@ -50,7 +60,7 @@ const Login = () => {
       } else {
         toast({
           title: "Login Error",
-          description: "Invalid username. Try 'admin' or 'user'",
+          description: "Invalid username or password",
           variant: "destructive"
         });
         setIsLoading(false);
@@ -76,7 +86,7 @@ const Login = () => {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
           <CardDescription className="text-center">
-            Enter your username to manage your virtual machines
+            Enter your credentials to manage your virtual machines
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
@@ -85,16 +95,27 @@ const Login = () => {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Username (try 'admin' or 'user')"
+                  placeholder="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  className="h-12 pl-10"
+                  disabled={isLoading}
+                />
+                <User className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="relative">
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="h-12 pl-10"
                   disabled={isLoading}
                 />
                 <Lock className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground px-1">
-                Default users: "admin" (administrator) or "user" (standard user)
+                Default credentials: "admin" / "123456" (administrator) or "user" / "123456" (standard user)
               </p>
             </div>
           </CardContent>

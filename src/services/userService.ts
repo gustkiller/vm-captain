@@ -6,12 +6,14 @@ const mockUsers: UserType[] = [
   {
     id: 'admin-1',
     username: 'admin',
+    password: '123456',
     role: UserRole.ADMIN,
     assignedVMs: []
   },
   {
     id: 'user-1',
     username: 'user',
+    password: '123456',
     role: UserRole.USER,
     assignedVMs: []
   }
@@ -58,13 +60,40 @@ class UserService {
     }
   }
 
-  login(username: string): boolean {
-    const user = this.users.find(u => u.username === username);
+  login(username: string, password: string): boolean {
+    const user = this.users.find(u => u.username === username && u.password === password);
     if (user) {
       this.currentUser = user;
       this.saveState();
       return true;
     }
+    return false;
+  }
+
+  changePassword(currentPassword: string, newPassword: string): boolean {
+    if (!this.currentUser) {
+      return false;
+    }
+    
+    // Verify current password
+    const user = this.users.find(u => 
+      u.id === this.currentUser?.id && 
+      u.password === currentPassword
+    );
+    
+    if (!user) {
+      return false;
+    }
+    
+    // Update password
+    const userIndex = this.users.findIndex(u => u.id === user.id);
+    if (userIndex !== -1) {
+      this.users[userIndex].password = newPassword;
+      this.currentUser.password = newPassword;
+      this.saveState();
+      return true;
+    }
+    
     return false;
   }
 
@@ -150,7 +179,7 @@ class UserService {
     return vms.filter(vm => this.currentUser?.assignedVMs?.includes(vm.id));
   }
 
-  addUser(username: string, role: UserRole): UserType | null {
+  addUser(username: string, password: string, role: UserRole): UserType | null {
     if (!this.isAdmin()) {
       return null;
     }
@@ -162,6 +191,7 @@ class UserService {
     const newUser: UserType = {
       id: `user-${Date.now()}`,
       username,
+      password,
       role,
       assignedVMs: []
     };

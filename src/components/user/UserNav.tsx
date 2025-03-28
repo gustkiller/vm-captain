@@ -18,6 +18,7 @@ import { LogOut, User, Settings, Shield } from "lucide-react";
 import { userService } from "@/services/userService";
 import { useNavigate } from "react-router-dom";
 import { UserRole } from "@/types/vm";
+import { PasswordChangeDialog } from "./PasswordChangeDialog";
 
 export function UserNav() {
   const currentUser = userService.getCurrentUser();
@@ -61,6 +62,7 @@ export function UserNav() {
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </DropdownMenuItem>
+          <PasswordChangeDialog />
           <DropdownMenuItem>
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
