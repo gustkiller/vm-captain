@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
-import { VMType } from '@/types/vm';
+import { VMType, VMStatus } from '@/types/vm'; // Add VMStatus import here
 import { SnapshotType } from '@/types/snapshot';
 import { VCenterService, createVCenterService } from '@/services/vCenterService';
 import config from '@/services/configService';
@@ -31,6 +31,22 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import { VMStatusBadge } from '@/components/vm/VMStatusBadge';
 import { useForm } from 'react-hook-form';
+
+// Helper function to convert VMStatus enum to the string format expected by VMStatusBadge
+const mapStatusForBadge = (status: VMStatus): 'running' | 'stopped' | 'suspended' | 'error' => {
+  switch (status) {
+    case VMStatus.RUNNING:
+      return 'running';
+    case VMStatus.STOPPED:
+      return 'stopped';
+    case VMStatus.SUSPENDED:
+      return 'suspended';
+    case VMStatus.MAINTENANCE:
+    case VMStatus.ERROR:
+    default:
+      return 'error';
+  }
+};
 
 const VMDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -271,7 +287,7 @@ const VMDetail = () => {
                 <CardTitle>{vm.name}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">{vm.os}</p>
               </div>
-              <VMStatusBadge status={vm.status.toLowerCase() as any} />
+              <VMStatusBadge status={mapStatusForBadge(vm.status)} />
             </CardHeader>
             <CardContent>
               {vm.description && (
