@@ -8,13 +8,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Database, Lock, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/user/ThemeToggle';
+import { toast } from 'sonner';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
 
   useEffect(() => {
     // Check if user is already logged in
@@ -28,7 +29,7 @@ const Login = () => {
     e.preventDefault();
     
     if (!username.trim()) {
-      toast({
+      uiToast({
         title: "Login Error",
         description: "Please enter a username",
         variant: "destructive"
@@ -37,7 +38,7 @@ const Login = () => {
     }
 
     if (!password.trim()) {
-      toast({
+      uiToast({
         title: "Login Error",
         description: "Please enter a password",
         variant: "destructive"
@@ -47,25 +48,31 @@ const Login = () => {
 
     setIsLoading(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      const success = userService.login(username, password);
+    try {
+      const success = await userService.login(username, password);
       
       if (success) {
-        toast({
-          title: "Login Successful",
-          description: `Welcome, ${username}!`,
+        toast.success(`Welcome, ${username}!`, {
+          description: "Login successful"
         });
         navigate('/');
       } else {
-        toast({
+        uiToast({
           title: "Login Error",
           description: "Invalid username or password",
           variant: "destructive"
         });
-        setIsLoading(false);
       }
-    }, 800);
+    } catch (error) {
+      console.error("Login failed:", error);
+      uiToast({
+        title: "Login Error",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -135,6 +142,7 @@ const Login = () => {
       </Card>
       
       <div className="mt-8 text-sm text-muted-foreground">
+        <p>Default credentials: admin/123456 or user/123456</p>
         <p>&copy; {new Date().getFullYear()} VM Captain. All rights reserved.</p>
       </div>
     </div>

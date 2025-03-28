@@ -1,48 +1,29 @@
 
-version: '3'
+version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8844:80"
-    environment:
-      - NODE_ENV=production
-    env_file:
-      - .env
-    volumes:
-      - ./.env:/usr/share/nginx/html/.env
-    depends_on:
-      - backend
-    networks:
-      - vm-captain-network
-
-  backend:
+  api:
     build:
       context: ./api
       dockerfile: Dockerfile
     ports:
       - "5000:5000"
-    environment:
-      - FLASK_ENV=production
-      - DB_FILE=/app/data/vm_captain.db
-    env_file:
-      - .env
     volumes:
-      - ./.env:/app/.env
-      - sqlite_data:/app/data
-    networks:
-      - vm-captain-network
+      - sqlite-data:/app/data
+    environment:
+      - PORT=5000
+      - DB_FILE=/app/data/vm_captain.db
+    restart: unless-stopped
 
-networks:
-  vm-captain-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 192.168.100.0/24
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
 
 volumes:
-  sqlite_data:
-    driver: local
+  sqlite-data:
